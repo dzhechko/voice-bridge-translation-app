@@ -5,7 +5,7 @@ import PrivacyModal from '@/components/PrivacyModal';
 import SettingsPanel from '@/components/SettingsPanel';
 import ErrorHandler from '@/components/ErrorHandler';
 import MainContent from '@/components/MainContent';
-import { useTranscriptProcessor } from '@/components/TranscriptProcessor';
+import { useTranscriptProcessing } from '@/hooks/useTranscriptProcessing';
 import { useMainAppState } from '@/hooks/useMainAppState';
 import { useRecordingActions } from '@/hooks/useRecordingActions';
 import { useAppEffects } from '@/hooks/useAppEffects';
@@ -46,7 +46,7 @@ const MainApp: React.FC = () => {
     speechRecognition,
   });
 
-  const { logger } = useTranscriptProcessor({
+  const { logger } = useTranscriptProcessing({
     transcript: speechRecognition.transcript,
     isListening: speechRecognition.isListening,
     status,
