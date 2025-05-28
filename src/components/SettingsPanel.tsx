@@ -18,9 +18,83 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({ isOpen, onClose }) => {
   const { settings, updateSettings, availableLanguages, availableVoices, availableModels } = useSettings();
   const [localSettings, setLocalSettings] = useState(settings);
 
+  // Function to get language-compatible voices
+  const getVoicesForLanguage = (targetLanguage: string) => {
+    if (!targetLanguage || availableVoices.length === 0) return availableVoices;
+    
+    const primaryLang = targetLanguage.substring(0, 2).toLowerCase();
+    
+    // First, get voices that match the exact language code
+    const exactMatches = availableVoices.filter(voice => 
+      voice.lang.toLowerCase() === targetLanguage.toLowerCase()
+    );
+    
+    // Then, get voices that match the primary language
+    const primaryMatches = availableVoices.filter(voice => {
+      const voiceLang = voice.lang.substring(0, 2).toLowerCase();
+      return voiceLang === primaryLang && 
+             voice.lang.toLowerCase() !== targetLanguage.toLowerCase();
+    });
+    
+    // Handle special cases for Chinese
+    const chineseMatches = primaryLang === 'zh' ? 
+      availableVoices.filter(voice => 
+        voice.lang.toLowerCase().includes('cmn') || 
+        voice.lang.toLowerCase().includes('chinese')
+      ) : [];
+    
+    // Combine and deduplicate
+    const compatibleVoices = [...exactMatches, ...primaryMatches, ...chineseMatches];
+    const uniqueVoices = compatibleVoices.filter((voice, index, self) => 
+      index === self.findIndex(v => v.name === voice.name)
+    );
+    
+    return uniqueVoices.length > 0 ? uniqueVoices : availableVoices;
+  };
+
+  // Function to find the best voice for a language
+  const findBestVoiceForLanguage = (targetLanguage: string) => {
+    const compatibleVoices = getVoicesForLanguage(targetLanguage);
+    if (compatibleVoices.length === 0) return '';
+    
+    const primaryLang = targetLanguage.substring(0, 2).toLowerCase();
+    
+    // Prefer exact language match
+    const exactMatch = compatibleVoices.find(voice => 
+      voice.lang.toLowerCase() === targetLanguage.toLowerCase()
+    );
+    if (exactMatch) return exactMatch.name;
+    
+    // Then prefer primary language match
+    const primaryMatch = compatibleVoices.find(voice => 
+      voice.lang.substring(0, 2).toLowerCase() === primaryLang
+    );
+    if (primaryMatch) return primaryMatch.name;
+    
+    // Return first available voice
+    return compatibleVoices[0].name;
+  };
+
   useEffect(() => {
     setLocalSettings(settings);
   }, [settings]);
+
+  // Handle target language change
+  const handleTargetLanguageChange = (newTargetLanguage: string) => {
+    const updatedSettings = { ...localSettings, targetLanguage: newTargetLanguage };
+    
+    // Check if current voice is compatible with new language
+    const compatibleVoices = getVoicesForLanguage(newTargetLanguage);
+    const currentVoiceCompatible = compatibleVoices.some(voice => voice.name === localSettings.voice);
+    
+    // If current voice is not compatible, select the best voice for the new language
+    if (!currentVoiceCompatible) {
+      const bestVoice = findBestVoiceForLanguage(newTargetLanguage);
+      updatedSettings.voice = bestVoice;
+    }
+    
+    setLocalSettings(updatedSettings);
+  };
 
   const handleSave = () => {
     updateSettings(localSettings);
@@ -31,6 +105,9 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({ isOpen, onClose }) => {
     setLocalSettings(settings);
     onClose();
   };
+
+  // Get filtered voices for current target language
+  const filteredVoices = getVoicesForLanguage(localSettings.targetLanguage);
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
@@ -64,7 +141,7 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({ isOpen, onClose }) => {
               <Label htmlFor="target-language">{t('settings.target')}</Label>
               <Select
                 value={localSettings.targetLanguage}
-                onValueChange={(value) => setLocalSettings({ ...localSettings, targetLanguage: value })}
+                onValueChange={handleTargetLanguageChange}
               >
                 <SelectTrigger>
                   <SelectValue />
@@ -90,13 +167,18 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({ isOpen, onClose }) => {
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                {availableVoices.map((voice) => (
+                {filteredVoices.map((voice) => (
                   <SelectItem key={voice.name} value={voice.name}>
                     {voice.name} ({voice.lang})
                   </SelectItem>
                 ))}
               </SelectContent>
             </Select>
+            {filteredVoices.length < availableVoices.length && (
+              <p className="text-xs text-muted-foreground">
+                Showing {filteredVoices.length} voice(s) compatible with selected language
+              </p>
+            )}
           </div>
 
           <div className="space-y-2">
