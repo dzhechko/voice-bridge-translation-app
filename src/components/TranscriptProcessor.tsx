@@ -106,7 +106,7 @@ export const useTranscriptProcessor = ({
         console.log('Speech synthesis completed');
         
         // Return to recording state if still listening
-        if (isListening && status !== 'idle') {
+        if (isListening) {
           setStatus('recording');
           console.log('Returned to recording state');
         } else {
@@ -120,7 +120,7 @@ export const useTranscriptProcessor = ({
         logger.log('error', 'Translation failed', { error: errorMessage });
         
         // Return to appropriate state
-        if (isListening && status !== 'idle') {
+        if (isListening) {
           setStatus('recording');
         } else {
           setStatus('idle');
