@@ -1,87 +1,40 @@
 
-import { useState, useRef, useCallback } from 'react';
-import { useSettings } from '@/contexts/SettingsContext';
-
-interface SpeechRecognitionHook {
-  isListening: boolean;
-  transcript: string;
-  startListening: () => Promise<void>;
-  stopListening: () => void;
-  error: string | null;
-}
-
-// TypeScript declarations for Web Speech API
-declare global {
-  interface Window {
-    SpeechRecognition: typeof SpeechRecognition;
-    webkitSpeechRecognition: typeof SpeechRecognition;
-  }
-
-  interface SpeechRecognition extends EventTarget {
-    continuous: boolean;
-    interimResults: boolean;
-    lang: string;
-    start(): void;
-    stop(): void;
-    onstart: ((this: SpeechRecognition, ev: Event) => any) | null;
-    onend: ((this: SpeechRecognition, ev: Event) => any) | null;
-    onresult: ((this: SpeechRecognition, ev: SpeechRecognitionEvent) => any) | null;
-    onerror: ((this: SpeechRecognition, ev: SpeechRecognitionErrorEvent) => any) | null;
-  }
-
-  interface SpeechRecognitionEvent extends Event {
-    readonly resultIndex: number;
-    readonly results: SpeechRecognitionResultList;
-  }
-
-  interface SpeechRecognitionResultList {
-    readonly length: number;
-    item(index: number): SpeechRecognitionResult;
-    [index: number]: SpeechRecognitionResult;
-  }
-
-  interface SpeechRecognitionResult {
-    readonly length: number;
-    item(index: number): SpeechRecognitionAlternative;
-    [index: number]: SpeechRecognitionAlternative;
-    readonly isFinal: boolean;
-  }
-
-  interface SpeechRecognitionAlternative {
-    readonly transcript: string;
-    readonly confidence: number;
-  }
-
-  interface SpeechRecognitionErrorEvent extends Event {
-    readonly error: string;
-    readonly message: string;
-  }
-
-  const SpeechRecognition: {
-    prototype: SpeechRecognition;
-    new(): SpeechRecognition;
-  };
-}
+import { useCallback } from 'react';
+import { SpeechRecognitionHook } from '@/types/speechRecognition';
+import { useSpeechRecognitionState } from '@/hooks/useSpeechRecognitionState';
+import { useSpeechRecognitionAPI } from '@/hooks/useSpeechRecognitionAPI';
 
 export const useSpeechRecognition = (): SpeechRecognitionHook => {
-  const [isListening, setIsListening] = useState(false);
-  const [transcript, setTranscript] = useState('');
-  const [error, setError] = useState<string | null>(null);
-  const { settings } = useSettings();
-  const recognitionRef = useRef<SpeechRecognition | null>(null);
-  const finalTranscriptRef = useRef('');
-  const shouldBeListeningRef = useRef(false);
+  const {
+    isListening,
+    setIsListening,
+    transcript,
+    setTranscript,
+    error,
+    setError,
+    recognitionRef,
+    finalTranscriptRef,
+    shouldBeListeningRef,
+  } = useSpeechRecognitionState();
+
+  const {
+    createRecognition,
+    handleStart,
+    handleResult,
+    handleError,
+    handleEnd,
+  } = useSpeechRecognitionAPI({
+    setIsListening,
+    setError,
+    setTranscript,
+    recognitionRef,
+    finalTranscriptRef,
+    shouldBeListeningRef,
+  });
 
   const startListening = useCallback(async () => {
     console.log('=== SPEECH RECOGNITION START ===');
     
-    if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
-      const errorMsg = 'Speech recognition is not supported in this browser. Please use Chrome, Edge, or Safari.';
-      console.error(errorMsg);
-      setError(errorMsg);
-      return;
-    }
-
     try {
       // Clean up any existing recognition
       if (recognitionRef.current) {
@@ -91,106 +44,12 @@ export const useSpeechRecognition = (): SpeechRecognitionHook => {
 
       shouldBeListeningRef.current = true;
 
-      const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-      const recognition = new SpeechRecognition();
+      const recognition = createRecognition();
 
-      recognition.continuous = true;
-      recognition.interimResults = true;
-      recognition.lang = settings.sourceLanguage;
-
-      console.log('Speech recognition configured:', {
-        continuous: recognition.continuous,
-        interimResults: recognition.interimResults,
-        lang: recognition.lang
-      });
-
-      recognition.onstart = () => {
-        console.log('Speech recognition started');
-        setIsListening(true);
-        setError(null);
-        setTranscript('');
-        finalTranscriptRef.current = '';
-      };
-
-      recognition.onresult = (event) => {
-        let finalTranscript = '';
-        let interimTranscript = '';
-
-        for (let i = event.resultIndex; i < event.results.length; i++) {
-          const transcript = event.results[i][0].transcript;
-          if (event.results[i].isFinal) {
-            finalTranscript += transcript;
-          } else {
-            interimTranscript += transcript;
-          }
-        }
-
-        // Update the final transcript accumulator
-        if (finalTranscript) {
-          finalTranscriptRef.current += finalTranscript;
-        }
-
-        // Set the current transcript (final + interim)
-        const currentTranscript = finalTranscriptRef.current + interimTranscript;
-        setTranscript(currentTranscript);
-
-        console.log('Speech result:', {
-          final: finalTranscript,
-          interim: interimTranscript,
-          accumulated: finalTranscriptRef.current,
-          current: currentTranscript
-        });
-      };
-
-      recognition.onerror = (event) => {
-        console.error('Speech recognition error:', event.error, event.message);
-        
-        let errorMessage = `Speech recognition error: ${event.error}`;
-        
-        switch (event.error) {
-          case 'no-speech':
-            // Don't treat no-speech as a fatal error, just continue listening
-            console.log('No speech detected, continuing to listen');
-            return;
-          case 'audio-capture':
-            errorMessage = 'Microphone not found or not working. Please check your microphone.';
-            break;
-          case 'not-allowed':
-            errorMessage = 'Microphone access denied. Please allow microphone access.';
-            break;
-          case 'network':
-            errorMessage = 'Network error occurred during speech recognition.';
-            break;
-          case 'aborted':
-            errorMessage = 'Speech recognition was aborted.';
-            break;
-        }
-        
-        setError(errorMessage);
-        setIsListening(false);
-        shouldBeListeningRef.current = false;
-      };
-
-      recognition.onend = () => {
-        console.log('Speech recognition ended');
-        setIsListening(false);
-        
-        // Only auto-restart if we should still be listening AND no error occurred
-        if (shouldBeListeningRef.current && !error) {
-          console.log('Auto-restarting speech recognition...');
-          setTimeout(() => {
-            if (shouldBeListeningRef.current && recognitionRef.current) {
-              try {
-                recognitionRef.current.start();
-              } catch (err) {
-                console.error('Failed to restart recognition:', err);
-                setError('Failed to restart speech recognition');
-                shouldBeListeningRef.current = false;
-              }
-            }
-          }, 100);
-        }
-      };
+      recognition.onstart = handleStart;
+      recognition.onresult = handleResult;
+      recognition.onerror = handleError;
+      recognition.onend = handleEnd;
 
       recognitionRef.current = recognition;
       recognition.start();
@@ -203,7 +62,7 @@ export const useSpeechRecognition = (): SpeechRecognitionHook => {
       setIsListening(false);
       shouldBeListeningRef.current = false;
     }
-  }, [settings.sourceLanguage, error]);
+  }, [createRecognition, handleStart, handleResult, handleError, handleEnd, recognitionRef, shouldBeListeningRef, setError, setIsListening]);
 
   const stopListening = useCallback(() => {
     console.log('=== SPEECH RECOGNITION STOP ===');
@@ -218,7 +77,7 @@ export const useSpeechRecognition = (): SpeechRecognitionHook => {
     
     setIsListening(false);
     console.log('Speech recognition stopped');
-  }, []);
+  }, [recognitionRef, shouldBeListeningRef, setIsListening]);
 
   return {
     isListening,
