@@ -15,11 +15,12 @@ export const useSpeechSynthesis = (): SpeechSynthesisHook => {
   const { settings } = useSettings();
 
   const speak = useCallback(async (text: string): Promise<void> => {
-    console.log('Speech synthesis called with:', {
-      text: text.substring(0, 50) + '...',
+    console.log('=== SPEECH SYNTHESIS START ===');
+    console.log('Speech synthesis request:', {
+      text: text.substring(0, 100) + '...',
       textLength: text.length,
       selectedVoice: settings.voice,
-      speechSynthesisSupported: 'speechSynthesis' in window
+      targetLanguage: settings.targetLanguage
     });
 
     if (!text.trim()) {
@@ -36,14 +37,14 @@ export const useSpeechSynthesis = (): SpeechSynthesisHook => {
       setError(null);
 
       // Wait for voices to be loaded
-      const voices = speechSynthesis.getVoices();
+      let voices = speechSynthesis.getVoices();
       if (voices.length === 0) {
-        console.log('No voices available yet, waiting...');
+        console.log('Waiting for voices to load...');
         await new Promise(resolve => {
           const checkVoices = () => {
-            const newVoices = speechSynthesis.getVoices();
-            if (newVoices.length > 0) {
-              resolve(newVoices);
+            voices = speechSynthesis.getVoices();
+            if (voices.length > 0) {
+              resolve(voices);
             } else {
               setTimeout(checkVoices, 100);
             }
@@ -52,32 +53,48 @@ export const useSpeechSynthesis = (): SpeechSynthesisHook => {
         });
       }
 
+      console.log('Available voices:', voices.length);
+
       const utterance = new SpeechSynthesisUtterance(text);
       
-      // Find the selected voice
-      const availableVoices = speechSynthesis.getVoices();
-      console.log('Available voices:', availableVoices.map(v => ({ name: v.name, lang: v.lang })));
+      // Find the best voice
+      let selectedVoice = null;
       
-      const selectedVoice = availableVoices.find(voice => voice.name === settings.voice);
-      if (selectedVoice) {
-        utterance.voice = selectedVoice;
-        console.log('Using selected voice:', selectedVoice.name);
-      } else {
-        // Fallback to a voice that matches target language
-        const fallbackVoice = availableVoices.find(voice => 
-          voice.lang.startsWith(settings.targetLanguage.substring(0, 2))
-        );
-        if (fallbackVoice) {
-          utterance.voice = fallbackVoice;
-          console.log('Using fallback voice:', fallbackVoice.name);
-        } else {
-          console.log('Using default voice');
+      // First try to find the exact voice that was selected
+      if (settings.voice) {
+        selectedVoice = voices.find(voice => voice.name === settings.voice);
+        if (selectedVoice) {
+          console.log('Using selected voice:', selectedVoice.name);
         }
       }
+      
+      // If no exact match, find a voice that matches the target language
+      if (!selectedVoice) {
+        const targetLangCode = settings.targetLanguage.substring(0, 2);
+        selectedVoice = voices.find(voice => 
+          voice.lang.toLowerCase().startsWith(targetLangCode.toLowerCase())
+        );
+        if (selectedVoice) {
+          console.log('Using language-matched voice:', selectedVoice.name, selectedVoice.lang);
+        }
+      }
+      
+      // Fallback to first available voice
+      if (!selectedVoice && voices.length > 0) {
+        selectedVoice = voices[0];
+        console.log('Using fallback voice:', selectedVoice.name, selectedVoice.lang);
+      }
+      
+      if (selectedVoice) {
+        utterance.voice = selectedVoice;
+      }
 
-      utterance.rate = 1;
+      // Configure speech parameters
+      utterance.rate = 0.9; // Slightly slower for better comprehension
       utterance.pitch = 1;
       utterance.volume = 1;
+
+      console.log('Starting speech synthesis...');
 
       return new Promise((resolve, reject) => {
         utterance.onstart = () => {
@@ -85,7 +102,7 @@ export const useSpeechSynthesis = (): SpeechSynthesisHook => {
         };
 
         utterance.onend = () => {
-          console.log('Speech synthesis completed');
+          console.log('=== SPEECH SYNTHESIS COMPLETED ===');
           setIsSpeaking(false);
           resolve();
         };
@@ -97,8 +114,13 @@ export const useSpeechSynthesis = (): SpeechSynthesisHook => {
           reject(new Error(event.error));
         };
 
-        console.log('Starting speech synthesis...');
-        speechSynthesis.speak(utterance);
+        // Cancel any ongoing speech first
+        speechSynthesis.cancel();
+        
+        // Small delay to ensure cancellation is processed
+        setTimeout(() => {
+          speechSynthesis.speak(utterance);
+        }, 100);
       });
     } catch (err) {
       setIsSpeaking(false);
@@ -110,7 +132,7 @@ export const useSpeechSynthesis = (): SpeechSynthesisHook => {
   }, [settings.voice, settings.targetLanguage]);
 
   const stop = useCallback(() => {
-    console.log('Stopping speech synthesis');
+    console.log('=== STOPPING SPEECH SYNTHESIS ===');
     speechSynthesis.cancel();
     setIsSpeaking(false);
   }, []);

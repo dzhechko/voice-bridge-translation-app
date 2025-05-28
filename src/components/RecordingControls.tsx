@@ -27,13 +27,13 @@ const RecordingControls: React.FC<RecordingControlsProps> = ({
       case 'idle':
         return 'Готов к записи';
       case 'recording':
-        return 'Остановка записи';
+        return 'Идет запись';
       case 'processing':
         return t('status.processing');
       case 'translating':
-        return t('status.translating');
+        return 'Переводим...';
       case 'playing':
-        return t('status.playing');
+        return 'Воспроизводим';
       default:
         return 'Готов к записи';
     }
@@ -56,7 +56,18 @@ const RecordingControls: React.FC<RecordingControlsProps> = ({
   };
 
   const isRecording = status === 'recording';
-  const isActive = status !== 'idle';
+  const isProcessing = status === 'processing' || status === 'translating' || status === 'playing';
+  const canStart = status === 'idle' && !disabled;
+  const canStop = status === 'recording';
+
+  console.log('RecordingControls render:', {
+    status,
+    isRecording,
+    isProcessing,
+    canStart,
+    canStop,
+    disabled
+  });
 
   return (
     <div className="flex flex-col items-center space-y-4">
@@ -64,12 +75,14 @@ const RecordingControls: React.FC<RecordingControlsProps> = ({
         <Button
           size="lg"
           variant={isRecording ? 'destructive' : 'default'}
-          onClick={isRecording ? onStop : onStart}
-          disabled={disabled || status === 'processing' || status === 'translating'}
+          onClick={canStop ? onStop : canStart ? onStart : undefined}
+          disabled={disabled || isProcessing}
           className={`h-20 w-20 rounded-full p-0 transition-all duration-300 ${
             isRecording
               ? 'bg-red-500 hover:bg-red-600 shadow-lg shadow-red-500/50'
-              : 'bg-green-600 hover:bg-green-700 shadow-lg shadow-green-600/50'
+              : canStart
+              ? 'bg-green-600 hover:bg-green-700 shadow-lg shadow-green-600/50'
+              : 'bg-gray-400 cursor-not-allowed'
           }`}
         >
           {isRecording ? (
@@ -94,17 +107,27 @@ const RecordingControls: React.FC<RecordingControlsProps> = ({
       </Badge>
 
       <div className={`text-center max-w-sm transition-colors duration-300 ${
-        isRecording ? 'text-red-600 dark:text-red-400' : 'text-green-600 dark:text-green-400'
+        isRecording ? 'text-red-600 dark:text-red-400' : 
+        canStart ? 'text-green-600 dark:text-green-400' :
+        'text-gray-500 dark:text-gray-400'
       }`}>
         <p className="text-sm font-medium">
           {isRecording
             ? 'Идет запись... Говорите в микрофон'
-            : 'Нажмите чтобы начать запись'}
+            : canStart 
+            ? 'Нажмите чтобы начать запись'
+            : isProcessing
+            ? 'Обрабатываем ваш запрос...'
+            : 'Настройте API ключ в настройках'}
         </p>
         <p className="text-xs mt-1 opacity-75">
           {isRecording
             ? 'Нажмите квадрат чтобы остановить'
-            : 'Речь будет переведена в реальном времени'}
+            : canStart
+            ? 'Речь будет переведена в реальном времени'
+            : isProcessing
+            ? 'Пожалуйста, подождите'
+            : 'Требуется OpenAI API ключ'}
         </p>
       </div>
     </div>
