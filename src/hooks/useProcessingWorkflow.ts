@@ -72,24 +72,27 @@ export const useProcessingWorkflow = ({
       
       console.log('Speech synthesis completed');
       
-      // Check if we should restart - only if not manually stopped
-      const currentStatus = document.querySelector('[data-recording-status]')?.getAttribute('data-recording-status');
-      console.log('Current status after synthesis:', currentStatus);
+      // Check current status to decide if we should restart
+      // Use a more reliable method to check if we should continue
+      const shouldContinue = document.querySelector('[data-recording-status]')?.getAttribute('data-recording-status') !== 'idle';
+      console.log('Should continue recording after synthesis:', shouldContinue);
       
-      if (currentStatus !== 'idle') {
+      if (shouldContinue) {
         // Restart speech recognition after speech synthesis
         console.log('Restarting speech recognition...');
         try {
+          // Give a brief pause before restarting
+          await new Promise(resolve => setTimeout(resolve, 300));
           await startSpeechRecognition();
           setStatus('recording');
           console.log('Speech recognition restarted successfully');
         } catch (restartError) {
           console.error('Failed to restart speech recognition:', restartError);
           setStatus('idle');
-          setError('Failed to restart speech recognition');
+          setError('Failed to restart speech recognition after translation');
         }
       } else {
-        console.log('Not restarting speech recognition - status is idle');
+        console.log('Not restarting speech recognition - recording has been stopped');
         setStatus('idle');
       }
     } catch (err) {
@@ -98,11 +101,13 @@ export const useProcessingWorkflow = ({
       setError(errorMessage);
       logger.log('error', 'Translation failed', { error: errorMessage });
       
-      // Check if we should return to recording state
+      // Check if we should return to recording state or stay idle
       const currentStatus = document.querySelector('[data-recording-status]')?.getAttribute('data-recording-status');
       if (currentStatus !== 'idle') {
+        console.log('Returning to recording state after error');
         setStatus('recording');
       } else {
+        console.log('Staying in idle state after error');
         setStatus('idle');
       }
     }

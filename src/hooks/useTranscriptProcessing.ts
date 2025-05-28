@@ -69,16 +69,24 @@ export const useTranscriptProcessing = ({
     console.log('Processing transcript:', {
       current: currentTranscript.substring(0, 30),
       last: lastProcessedTranscript.substring(0, 30),
-      currentLength: currentTranscript.length
+      currentLength: currentTranscript.length,
+      difference: validation.difference
     });
 
     const handleProcessing = async () => {
+      // Update the last processed transcript before processing
       setLastProcessedTranscript(currentTranscript);
-      await processTranscript(currentTranscript);
+      
+      try {
+        await processTranscript(currentTranscript);
+      } catch (error) {
+        console.error('Error processing transcript:', error);
+        // Don't reset lastProcessedTranscript on error to avoid reprocessing
+      }
     };
 
-    // Increased debounce time for more stable processing
-    const timeoutId = setTimeout(handleProcessing, 2000);
+    // Shorter debounce for better responsiveness, but still prevent spam
+    const timeoutId = setTimeout(handleProcessing, 1500);
     return () => {
       console.log('Clearing translation timeout');
       clearTimeout(timeoutId);

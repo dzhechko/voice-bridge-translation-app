@@ -49,7 +49,11 @@ export const useAppEffects = ({
     if (speechRecognition.error) {
       console.error('Speech recognition error detected:', speechRecognition.error);
       setError(speechRecognition.error);
-      setStatus('idle');
+      
+      // Only stop if we're currently recording
+      if (status === 'recording') {
+        setStatus('idle');
+      }
       
       toast({
         title: "Speech Recognition Error",
@@ -57,9 +61,9 @@ export const useAppEffects = ({
         variant: "destructive",
       });
     }
-  }, [speechRecognition.error, toast, setError, setStatus]);
+  }, [speechRecognition.error, toast, setError, setStatus, status]);
 
-  // Enhanced status synchronization with speech recognition state
+  // Improved status synchronization with speech recognition state
   useEffect(() => {
     console.log('Status sync check:', {
       status,
@@ -68,22 +72,29 @@ export const useAppEffects = ({
       shouldSync: status === 'recording' && !speechRecognition.isListening
     });
 
-    // If status is recording but speech recognition stopped unexpectedly (and no error)
-    if (status === 'recording' && !speechRecognition.isListening && !speechRecognition.error) {
-      console.log('Detected status desync: status is recording but not listening, correcting to idle');
-      setStatus('idle');
-    }
-    
-    // If speech recognition is listening but status is not recording (and no processing states)
-    if (speechRecognition.isListening && !['recording', 'processing', 'translating', 'playing'].includes(status)) {
-      console.log('Detected status desync: listening but status not recording, correcting to recording');
-      setStatus('recording');
+    // Don't sync if there's an error - let error handling take care of it
+    if (speechRecognition.error) {
+      return;
     }
 
-    // If status is idle but speech recognition is still listening, stop it
-    if (status === 'idle' && speechRecognition.isListening) {
-      console.log('Status is idle but still listening, stopping speech recognition');
-      speechRecognition.stopListening();
+    // If we're in recording state but not listening and no error occurred
+    if (status === 'recording' && !speechRecognition.isListening) {
+      console.log('Recording state but not listening - may be temporary during restart');
+      // Give a brief moment for potential restart before correcting
+      const timeoutId = setTimeout(() => {
+        if (status === 'recording' && !speechRecognition.isListening && !speechRecognition.error) {
+          console.log('Correcting status: recording but not listening');
+          setStatus('idle');
+        }
+      }, 1000);
+      
+      return () => clearTimeout(timeoutId);
     }
-  }, [status, speechRecognition.isListening, speechRecognition.error, speechRecognition.stopListening, setStatus]);
+    
+    // If we're listening but not in an active state
+    if (speechRecognition.isListening && status === 'idle') {
+      console.log('Listening but status is idle - correcting to recording');
+      setStatus('recording');
+    }
+  }, [status, speechRecognition.isListening, speechRecognition.error, setStatus]);
 };

@@ -57,17 +57,15 @@ export const useRecordingActions = ({
     try {
       console.log('Starting recording process...');
       setError(null);
-      // Reset transcript tracking on start
       setLastProcessedTranscript('');
       
-      // Start speech recognition first
-      await speechRecognition.startListening();
-      console.log('Speech recognition started, setting status to recording');
-      
-      // Set status to recording after speech recognition starts successfully
+      // Set status first to indicate we're starting
       setStatus('recording');
       
-      console.log('Recording started successfully');
+      // Start speech recognition
+      await speechRecognition.startListening();
+      console.log('Speech recognition started successfully');
+      
       toast({
         title: "Recording Started",
         description: "Speak into your microphone. Your speech will be translated in real-time.",
@@ -92,7 +90,7 @@ export const useRecordingActions = ({
     console.log('Is listening:', speechRecognition.isListening);
     
     try {
-      // Stop speech synthesis first
+      // Stop speech synthesis immediately
       speechSynthesis.stop();
       console.log('Speech synthesis stopped');
       
@@ -100,7 +98,7 @@ export const useRecordingActions = ({
       speechRecognition.stopListening();
       console.log('Speech recognition stop called');
       
-      // Reset all state immediately
+      // Set status to idle immediately
       setStatus('idle');
       setLastProcessedTranscript('');
       setError(null);

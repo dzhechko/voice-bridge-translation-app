@@ -18,7 +18,7 @@ export const validateTranscript = (
     return { isValid: false, reason: 'no transcript' };
   }
 
-  // Not in recording state - this was the main issue
+  // Only process during recording state
   if (status !== 'recording') {
     return { isValid: false, reason: `status is ${status}, not recording` };
   }
@@ -27,9 +27,9 @@ export const validateTranscript = (
   const lastLength = lastProcessedTranscript.trim().length;
   const difference = currentLength - lastLength;
 
-  // Allow processing if transcript is shorter (handles reset scenarios)
-  if (currentLength < lastLength) {
-    console.log('Transcript is shorter than last processed - allowing for reset scenario');
+  // Allow processing if transcript is significantly shorter (reset scenario)
+  if (currentLength < lastLength && (lastLength - currentLength) > 10) {
+    console.log('Transcript reset detected - allowing processing');
     return { 
       isValid: true, 
       reason: 'transcript reset detected',
@@ -38,14 +38,26 @@ export const validateTranscript = (
     };
   }
 
-  // Not enough new content to process (reduced threshold for better responsiveness)
-  if (difference < 5) {
-    return { 
-      isValid: false, 
-      reason: 'not enough new content',
-      currentLength,
-      difference
-    };
+  // For very short transcripts, require less new content
+  if (currentLength < 20) {
+    if (difference < 3) {
+      return { 
+        isValid: false, 
+        reason: 'not enough new content for short transcript',
+        currentLength,
+        difference
+      };
+    }
+  } else {
+    // For longer transcripts, require meaningful new content
+    if (difference < 8) {
+      return { 
+        isValid: false, 
+        reason: 'not enough new content',
+        currentLength,
+        difference
+      };
+    }
   }
 
   // All checks passed
