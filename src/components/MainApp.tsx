@@ -1,29 +1,50 @@
-import React, { useState, useEffect, useCallback } from 'react';
+
+import React from 'react';
 import Header from '@/components/Header';
 import PrivacyModal from '@/components/PrivacyModal';
 import SettingsPanel from '@/components/SettingsPanel';
 import ErrorHandler from '@/components/ErrorHandler';
 import MainContent from '@/components/MainContent';
-import { RecordingStatus } from '@/components/RecordingControls';
-import { TranscriptionEntry } from '@/components/TranscriptionDisplay';
-import { useSpeechRecognition } from '@/hooks/useSpeechRecognition';
-import { useSpeechSynthesis } from '@/hooks/useSpeechSynthesis';
 import { useTranscriptProcessor } from '@/components/TranscriptProcessor';
-import { useSettings } from '@/contexts/SettingsContext';
-import { useToast } from '@/hooks/use-toast';
+import { useMainAppState } from '@/hooks/useMainAppState';
+import { useRecordingActions } from '@/hooks/useRecordingActions';
+import { useAppEffects } from '@/hooks/useAppEffects';
 
 const MainApp: React.FC = () => {
-  const [showPrivacyModal, setShowPrivacyModal] = useState(true);
-  const [showSettings, setShowSettings] = useState(false);
-  const [status, setStatus] = useState<RecordingStatus>('idle');
-  const [transcriptionEntries, setTranscriptionEntries] = useState<TranscriptionEntry[]>([]);
-  const [error, setError] = useState<string | null>(null);
-  const [lastProcessedTranscript, setLastProcessedTranscript] = useState('');
+  const {
+    showPrivacyModal,
+    setShowPrivacyModal,
+    showSettings,
+    setShowSettings,
+    status,
+    setStatus,
+    transcriptionEntries,
+    setTranscriptionEntries,
+    error,
+    setError,
+    lastProcessedTranscript,
+    setLastProcessedTranscript,
+  } = useMainAppState();
 
-  const { settings } = useSettings();
-  const { toast } = useToast();
-  const speechRecognition = useSpeechRecognition();
-  const speechSynthesis = useSpeechSynthesis();
+  const {
+    handleStartRecording,
+    handleStopRecording,
+    speechRecognition,
+  } = useRecordingActions({
+    status,
+    setStatus,
+    setError,
+    setLastProcessedTranscript,
+  });
+
+  useAppEffects({
+    showPrivacyModal,
+    setShowPrivacyModal,
+    status,
+    setStatus,
+    setError,
+    speechRecognition,
+  });
 
   const { logger } = useTranscriptProcessor({
     transcript: speechRecognition.transcript,
@@ -38,142 +59,11 @@ const MainApp: React.FC = () => {
     startSpeechRecognition: speechRecognition.startListening,
   });
 
-  useEffect(() => {
-    const hasAcceptedPrivacy = localStorage.getItem('privacy-accepted');
-    if (hasAcceptedPrivacy) {
-      setShowPrivacyModal(false);
-    }
-  }, []);
-
-  // Check for API key configuration
-  useEffect(() => {
-    if (!showPrivacyModal && !settings.openaiApiKey) {
-      toast({
-        title: "Configuration Required",
-        description: "Please configure your OpenAI API key in settings to use translation features.",
-        variant: "destructive",
-      });
-    }
-  }, [showPrivacyModal, settings.openaiApiKey, toast]);
-
   const handlePrivacyAccept = () => {
     localStorage.setItem('privacy-accepted', 'true');
     setShowPrivacyModal(false);
     logger.log('info', 'Privacy policy accepted');
   };
-
-  const handleStartRecording = useCallback(async () => {
-    console.log('=== START RECORDING INITIATED ===');
-    
-    // Check API key
-    if (!settings.openaiApiKey) {
-      const errorMessage = 'OpenAI API key is required. Please configure it in settings.';
-      setError(errorMessage);
-      toast({
-        title: "Configuration Error",
-        description: errorMessage,
-        variant: "destructive",
-      });
-      return;
-    }
-
-    // Check microphone permissions
-    try {
-      await navigator.mediaDevices.getUserMedia({ audio: true });
-      console.log('Microphone permission granted');
-    } catch (permissionError) {
-      const errorMessage = 'Microphone access denied. Please grant permission to use speech recognition.';
-      setError(errorMessage);
-      toast({
-        title: "Permission Error",
-        description: errorMessage,
-        variant: "destructive",
-      });
-      return;
-    }
-
-    try {
-      console.log('Starting recording process...');
-      setError(null);
-      setStatus('recording');
-      setLastProcessedTranscript('');
-      
-      logger.log('info', 'Recording started');
-      await speechRecognition.startListening();
-      
-      console.log('Speech recognition started successfully');
-      toast({
-        title: "Recording Started",
-        description: "Speak into your microphone. Your speech will be translated in real-time.",
-      });
-    } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Failed to start recording';
-      console.error('Recording start failed:', errorMessage);
-      setError(errorMessage);
-      setStatus('idle');
-      logger.log('error', 'Recording failed', { error: errorMessage });
-      
-      toast({
-        title: "Recording Error",
-        description: errorMessage,
-        variant: "destructive",
-      });
-    }
-  }, [speechRecognition, logger, settings.openaiApiKey, toast]);
-
-  const handleStopRecording = useCallback(() => {
-    console.log('=== STOP RECORDING INITIATED ===');
-    console.log('Current status:', status);
-    console.log('Is listening:', speechRecognition.isListening);
-    
-    try {
-      speechRecognition.stopListening();
-      speechSynthesis.stop();
-      setStatus('idle');
-      setLastProcessedTranscript('');
-      
-      console.log('Recording stopped successfully');
-      logger.log('info', 'Recording stopped');
-      
-      toast({
-        title: "Recording Stopped",
-        description: "Speech recognition has been stopped.",
-      });
-    } catch (err) {
-      console.error('Error stopping recording:', err);
-      setStatus('idle'); // Force reset to idle
-    }
-  }, [speechRecognition, speechSynthesis, logger, status, toast]);
-
-  // Handle speech recognition errors
-  useEffect(() => {
-    if (speechRecognition.error) {
-      console.error('Speech recognition error:', speechRecognition.error);
-      setError(speechRecognition.error);
-      setStatus('idle');
-      
-      toast({
-        title: "Speech Recognition Error",
-        description: speechRecognition.error,
-        variant: "destructive",
-      });
-    }
-  }, [speechRecognition.error, toast]);
-
-  // Sync status with speech recognition state
-  useEffect(() => {
-    console.log('Status sync check:', {
-      status,
-      isListening: speechRecognition.isListening,
-      shouldSync: status === 'recording' && !speechRecognition.isListening
-    });
-
-    // If we think we're recording but speech recognition stopped unexpectedly
-    if (status === 'recording' && !speechRecognition.isListening && !speechRecognition.error) {
-      console.log('Detected status desync, correcting to idle');
-      setStatus('idle');
-    }
-  }, [status, speechRecognition.isListening, speechRecognition.error]);
 
   const retryLastAction = () => {
     setError(null);
