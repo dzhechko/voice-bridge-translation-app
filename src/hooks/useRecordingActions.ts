@@ -57,12 +57,16 @@ export const useRecordingActions = ({
     try {
       console.log('Starting recording process...');
       setError(null);
-      setStatus('recording');
       setLastProcessedTranscript('');
       
+      // Start speech recognition first
       await speechRecognition.startListening();
+      console.log('Speech recognition started, setting status to recording');
       
-      console.log('Speech recognition started successfully');
+      // Set status to recording after speech recognition starts successfully
+      setStatus('recording');
+      
+      console.log('Recording started successfully');
       toast({
         title: "Recording Started",
         description: "Speak into your microphone. Your speech will be translated in real-time.",

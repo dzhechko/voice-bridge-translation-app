@@ -47,7 +47,7 @@ export const useAppEffects = ({
   // Handle speech recognition errors
   useEffect(() => {
     if (speechRecognition.error) {
-      console.error('Speech recognition error:', speechRecognition.error);
+      console.error('Speech recognition error detected:', speechRecognition.error);
       setError(speechRecognition.error);
       setStatus('idle');
       
@@ -59,18 +59,25 @@ export const useAppEffects = ({
     }
   }, [speechRecognition.error, toast, setError, setStatus]);
 
-  // Sync status with speech recognition state
+  // Improved status synchronization with speech recognition state
   useEffect(() => {
     console.log('Status sync check:', {
       status,
       isListening: speechRecognition.isListening,
+      hasError: !!speechRecognition.error,
       shouldSync: status === 'recording' && !speechRecognition.isListening
     });
 
-    // If we think we're recording but speech recognition stopped unexpectedly
+    // If status is recording but speech recognition stopped unexpectedly (and no error)
     if (status === 'recording' && !speechRecognition.isListening && !speechRecognition.error) {
-      console.log('Detected status desync, correcting to idle');
+      console.log('Detected status desync: status is recording but not listening, correcting to idle');
       setStatus('idle');
+    }
+    
+    // If speech recognition is listening but status is not recording (and no processing states)
+    if (speechRecognition.isListening && !['recording', 'processing', 'translating', 'playing'].includes(status)) {
+      console.log('Detected status desync: listening but status not recording, correcting to recording');
+      setStatus('recording');
     }
   }, [status, speechRecognition.isListening, speechRecognition.error, setStatus]);
 };

@@ -110,16 +110,17 @@ export const useSpeechRecognitionAPI = ({
   }, [setError, setIsListening, shouldBeListeningRef]);
 
   const handleEnd = useCallback(() => {
-    console.log('Speech recognition ended');
+    console.log('Speech recognition ended, shouldBeListening:', shouldBeListeningRef.current);
     setIsListening(false);
     
-    // Only auto-restart if we should still be listening AND no error occurred
-    if (shouldBeListeningRef.current && !setError) {
+    // Only auto-restart if we should still be listening
+    if (shouldBeListeningRef.current) {
       console.log('Auto-restarting speech recognition...');
       setTimeout(() => {
         if (shouldBeListeningRef.current && recognitionRef.current) {
           try {
             recognitionRef.current.start();
+            console.log('Speech recognition auto-restarted successfully');
           } catch (err) {
             console.error('Failed to restart recognition:', err);
             setError('Failed to restart speech recognition');
