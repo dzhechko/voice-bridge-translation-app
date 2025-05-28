@@ -41,8 +41,16 @@ export const useTranscriptProcessor = ({
       lastProcessedLength: lastProcessedTranscript?.length || 0
     });
 
+    // Теперь обрабатываем только если статус 'recording' И isListening = true
     if (!transcript || status !== 'recording' || !isListening) {
-      console.log('Skipping processing:', { transcript: !!transcript, status, isListening });
+      console.log('Skipping processing:', { 
+        hasTranscript: !!transcript, 
+        status, 
+        isListening,
+        reason: !transcript ? 'no transcript' : 
+                status !== 'recording' ? 'status not recording' : 
+                !isListening ? 'not listening' : 'unknown'
+      });
       return;
     }
 
@@ -119,15 +127,6 @@ export const useTranscriptProcessor = ({
       clearTimeout(timeoutId);
     };
   }, [transcript, isListening, status, translationService, speechSynthesis, logger, lastProcessedTranscript, setLastProcessedTranscript, setStatus, setTranscriptionEntries, setError]);
-
-  // Синхронизируем статус с состоянием распознавания речи
-  useEffect(() => {
-    console.log('Status sync effect:', { isListening, status });
-    if (!isListening && status === 'recording') {
-      console.log('Stopping recording - setting status to idle');
-      setStatus('idle');
-    }
-  }, [isListening, status, setStatus]);
 
   return { logger };
 };

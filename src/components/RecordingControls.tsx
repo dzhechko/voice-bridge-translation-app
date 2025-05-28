@@ -25,9 +25,9 @@ const RecordingControls: React.FC<RecordingControlsProps> = ({
   const getStatusText = () => {
     switch (status) {
       case 'idle':
-        return t('status.idle');
+        return 'Готов к записи';
       case 'recording':
-        return t('status.recording');
+        return 'Остановка записи';
       case 'processing':
         return t('status.processing');
       case 'translating':
@@ -35,7 +35,7 @@ const RecordingControls: React.FC<RecordingControlsProps> = ({
       case 'playing':
         return t('status.playing');
       default:
-        return t('status.idle');
+        return 'Готов к записи';
     }
   };
 
@@ -69,15 +69,11 @@ const RecordingControls: React.FC<RecordingControlsProps> = ({
           className={`h-20 w-20 rounded-full p-0 transition-all duration-300 ${
             isRecording
               ? 'bg-red-500 hover:bg-red-600 shadow-lg shadow-red-500/50'
-              : isActive
-              ? 'bg-orange-500 hover:bg-orange-600 shadow-lg shadow-orange-500/50'
               : 'bg-green-600 hover:bg-green-700 shadow-lg shadow-green-600/50'
           }`}
         >
           {isRecording ? (
             <Square className="w-8 h-8 text-white" fill="white" />
-          ) : isActive ? (
-            <MicOff className="w-8 h-8 text-white" />
           ) : (
             <Mic className="w-8 h-8 text-white" />
           )}
@@ -89,10 +85,6 @@ const RecordingControls: React.FC<RecordingControlsProps> = ({
             <div className="absolute -inset-2 border-2 border-red-300 rounded-full animate-pulse opacity-50" />
           </>
         )}
-
-        {isActive && !isRecording && (
-          <div className="absolute -inset-2 border-2 border-orange-400 rounded-full animate-pulse opacity-75" />
-        )}
       </div>
 
       <Badge variant={getStatusColor() as any} className={`text-sm px-4 py-2 font-semibold ${
@@ -102,22 +94,16 @@ const RecordingControls: React.FC<RecordingControlsProps> = ({
       </Badge>
 
       <div className={`text-center max-w-sm transition-colors duration-300 ${
-        isRecording ? 'text-red-600 dark:text-red-400' : 
-        isActive ? 'text-orange-600 dark:text-orange-400' : 
-        'text-muted-foreground'
+        isRecording ? 'text-red-600 dark:text-red-400' : 'text-green-600 dark:text-green-400'
       }`}>
         <p className="text-sm font-medium">
           {isRecording
             ? 'Идет запись... Говорите в микрофон'
-            : isActive
-            ? 'Обрабатывается...'
             : 'Нажмите чтобы начать запись'}
         </p>
         <p className="text-xs mt-1 opacity-75">
           {isRecording
             ? 'Нажмите квадрат чтобы остановить'
-            : isActive
-            ? 'Пожалуйста, подождите'
             : 'Речь будет переведена в реальном времени'}
         </p>
       </div>

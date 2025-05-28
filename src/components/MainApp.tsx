@@ -48,8 +48,9 @@ const MainApp: React.FC = () => {
 
   const handleStartRecording = useCallback(async () => {
     try {
+      console.log('Starting recording - setting status to recording');
       setError(null);
-      setStatus('recording');
+      setStatus('recording'); // Устанавливаем статус 'recording' СРАЗУ
       setLastProcessedTranscript('');
       logger.log('info', 'Recording started');
       await speechRecognition.startListening();
@@ -62,10 +63,10 @@ const MainApp: React.FC = () => {
   }, [speechRecognition, logger]);
 
   const handleStopRecording = useCallback(() => {
-    console.log('Stopping recording...');
+    console.log('Stopping recording - setting status to idle');
     speechRecognition.stopListening();
     speechSynthesis.stop();
-    setStatus('idle');
+    setStatus('idle'); // Возвращаем статус в 'idle'
     setLastProcessedTranscript('');
     logger.log('info', 'Recording stopped');
   }, [speechRecognition, speechSynthesis, logger]);
