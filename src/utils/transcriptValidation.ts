@@ -1,9 +1,16 @@
 
+interface ValidationResult {
+  isValid: boolean;
+  reason?: string;
+  currentLength?: number;
+  difference?: number;
+}
+
 export const validateTranscript = (
   transcript: string,
   lastProcessedTranscript: string,
   status: string
-): { isValid: boolean; reason?: string } => {
+): ValidationResult => {
   // Only process if we have a transcript and we're in recording mode
   if (!transcript) {
     return { isValid: false, reason: 'no transcript' };
