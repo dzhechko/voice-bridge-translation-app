@@ -59,7 +59,7 @@ export const useAppEffects = ({
     }
   }, [speechRecognition.error, toast, setError, setStatus]);
 
-  // Improved status synchronization with speech recognition state
+  // Enhanced status synchronization with speech recognition state
   useEffect(() => {
     console.log('Status sync check:', {
       status,
@@ -79,5 +79,11 @@ export const useAppEffects = ({
       console.log('Detected status desync: listening but status not recording, correcting to recording');
       setStatus('recording');
     }
-  }, [status, speechRecognition.isListening, speechRecognition.error, setStatus]);
+
+    // If status is idle but speech recognition is still listening, stop it
+    if (status === 'idle' && speechRecognition.isListening) {
+      console.log('Status is idle but still listening, stopping speech recognition');
+      speechRecognition.stopListening();
+    }
+  }, [status, speechRecognition.isListening, speechRecognition.error, speechRecognition.stopListening, setStatus]);
 };

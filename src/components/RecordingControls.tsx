@@ -68,7 +68,7 @@ const RecordingControls: React.FC<RecordingControlsProps> = ({
   });
 
   return (
-    <div className="flex flex-col items-center space-y-4">
+    <div className="flex flex-col items-center space-y-4" data-recording-status={status}>
       <div className="relative">
         <Button
           size="lg"

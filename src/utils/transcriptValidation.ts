@@ -27,11 +27,12 @@ export const validateTranscript = (
   const lastLength = lastProcessedTranscript.trim().length;
   const difference = currentLength - lastLength;
 
-  // Transcript is shorter than last processed (shouldn't happen but safety check)
+  // Allow processing if transcript is shorter (handles reset scenarios)
   if (currentLength < lastLength) {
+    console.log('Transcript is shorter than last processed - allowing for reset scenario');
     return { 
-      isValid: false, 
-      reason: 'transcript shorter than last processed',
+      isValid: true, 
+      reason: 'transcript reset detected',
       currentLength,
       difference
     };

@@ -57,6 +57,7 @@ export const useRecordingActions = ({
     try {
       console.log('Starting recording process...');
       setError(null);
+      // Reset transcript tracking on start
       setLastProcessedTranscript('');
       
       // Start speech recognition first
@@ -91,12 +92,20 @@ export const useRecordingActions = ({
     console.log('Is listening:', speechRecognition.isListening);
     
     try {
-      speechRecognition.stopListening();
+      // Stop speech synthesis first
       speechSynthesis.stop();
+      console.log('Speech synthesis stopped');
+      
+      // Stop speech recognition
+      speechRecognition.stopListening();
+      console.log('Speech recognition stop called');
+      
+      // Reset all state immediately
       setStatus('idle');
       setLastProcessedTranscript('');
+      setError(null);
       
-      console.log('Recording stopped successfully');
+      console.log('Recording stopped successfully - state reset complete');
       
       toast({
         title: "Recording Stopped",
@@ -104,9 +113,12 @@ export const useRecordingActions = ({
       });
     } catch (err) {
       console.error('Error stopping recording:', err);
-      setStatus('idle'); // Force reset to idle
+      // Force reset to idle even if there's an error
+      setStatus('idle');
+      setLastProcessedTranscript('');
+      setError(null);
     }
-  }, [speechRecognition, speechSynthesis, status, toast, setStatus, setLastProcessedTranscript]);
+  }, [speechRecognition, speechSynthesis, status, toast, setStatus, setLastProcessedTranscript, setError]);
 
   return {
     handleStartRecording,

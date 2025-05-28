@@ -72,16 +72,25 @@ export const useProcessingWorkflow = ({
       
       console.log('Speech synthesis completed');
       
-      // Restart speech recognition after speech synthesis
-      console.log('Restarting speech recognition...');
-      try {
-        await startSpeechRecognition();
-        setStatus('recording');
-        console.log('Speech recognition restarted successfully');
-      } catch (restartError) {
-        console.error('Failed to restart speech recognition:', restartError);
+      // Check if we should restart - only if not manually stopped
+      const currentStatus = document.querySelector('[data-recording-status]')?.getAttribute('data-recording-status');
+      console.log('Current status after synthesis:', currentStatus);
+      
+      if (currentStatus !== 'idle') {
+        // Restart speech recognition after speech synthesis
+        console.log('Restarting speech recognition...');
+        try {
+          await startSpeechRecognition();
+          setStatus('recording');
+          console.log('Speech recognition restarted successfully');
+        } catch (restartError) {
+          console.error('Failed to restart speech recognition:', restartError);
+          setStatus('idle');
+          setError('Failed to restart speech recognition');
+        }
+      } else {
+        console.log('Not restarting speech recognition - status is idle');
         setStatus('idle');
-        setError('Failed to restart speech recognition');
       }
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Translation failed';
@@ -89,8 +98,13 @@ export const useProcessingWorkflow = ({
       setError(errorMessage);
       logger.log('error', 'Translation failed', { error: errorMessage });
       
-      // Return to recording state if still supposed to be listening
-      setStatus('recording');
+      // Check if we should return to recording state
+      const currentStatus = document.querySelector('[data-recording-status]')?.getAttribute('data-recording-status');
+      if (currentStatus !== 'idle') {
+        setStatus('recording');
+      } else {
+        setStatus('idle');
+      }
     }
   }, [translationService, speechSynthesis, logger, setStatus, setTranscriptionEntries, setError, stopSpeechRecognition, startSpeechRecognition]);
 
