@@ -35,6 +35,8 @@ const MainApp: React.FC = () => {
     setStatus,
     setTranscriptionEntries,
     setError,
+    stopSpeechRecognition: speechRecognition.stopListening,
+    startSpeechRecognition: speechRecognition.startListening,
   });
 
   useEffect(() => {

@@ -15,6 +15,8 @@ interface TranscriptProcessorProps {
   setStatus: (status: RecordingStatus) => void;
   setTranscriptionEntries: React.Dispatch<React.SetStateAction<TranscriptionEntry[]>>;
   setError: (error: string | null) => void;
+  stopSpeechRecognition: () => void;
+  startSpeechRecognition: () => Promise<void>;
 }
 
 export const useTranscriptProcessor = ({
@@ -26,6 +28,8 @@ export const useTranscriptProcessor = ({
   setStatus,
   setTranscriptionEntries,
   setError,
+  stopSpeechRecognition,
+  startSpeechRecognition,
 }: TranscriptProcessorProps) => {
   const translationService = useTranslationService();
   const speechSynthesis = useSpeechSynthesis();
@@ -58,9 +62,9 @@ export const useTranscriptProcessor = ({
     
     // More sophisticated duplicate detection
     if (currentTranscript === lastProcessedTranscript || 
-        currentTranscript.length < 10 ||  // Increased minimum length
+        currentTranscript.length < 10 ||
         currentTranscript.startsWith(lastProcessedTranscript) &&
-        currentTranscript.length - lastProcessedTranscript.length < 5) {  // Not enough new content
+        currentTranscript.length - lastProcessedTranscript.length < 5) {
       console.log('Skipping duplicate or insufficient transcript:', {
         current: currentTranscript.substring(0, 30),
         last: lastProcessedTranscript.substring(0, 30),
@@ -102,13 +106,33 @@ export const useTranscriptProcessor = ({
         setStatus('playing');
         logger.log('info', 'Playing translation', { translation: result.translatedText });
         
-        await speechSynthesis.speak(result.translatedText);
+        // Stop speech recognition before speaking
+        console.log('Stopping speech recognition for synthesis...');
+        stopSpeechRecognition();
+        
+        await speechSynthesis.speak(
+          result.translatedText,
+          () => {
+            console.log('Speech synthesis started callback');
+          },
+          () => {
+            console.log('Speech synthesis ended callback');
+          }
+        );
+        
         console.log('Speech synthesis completed');
         
-        // Return to recording state if still listening
-        if (isListening) {
-          setStatus('recording');
-          console.log('Returned to recording state');
+        // Restart speech recognition if we should still be listening
+        if (isListening && status !== 'idle') {
+          console.log('Restarting speech recognition...');
+          try {
+            await startSpeechRecognition();
+            setStatus('recording');
+            console.log('Speech recognition restarted successfully');
+          } catch (restartError) {
+            console.error('Failed to restart speech recognition:', restartError);
+            setStatus('idle');
+          }
         } else {
           setStatus('idle');
           console.log('Returned to idle state');
@@ -134,7 +158,7 @@ export const useTranscriptProcessor = ({
       console.log('Clearing translation timeout');
       clearTimeout(timeoutId);
     };
-  }, [transcript, isListening, status, translationService, speechSynthesis, logger, lastProcessedTranscript, setLastProcessedTranscript, setStatus, setTranscriptionEntries, setError]);
+  }, [transcript, isListening, status, translationService, speechSynthesis, logger, lastProcessedTranscript, setLastProcessedTranscript, setStatus, setTranscriptionEntries, setError, stopSpeechRecognition, startSpeechRecognition]);
 
   return { logger };
 };

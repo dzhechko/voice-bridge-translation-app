@@ -3,7 +3,7 @@ import { useState, useCallback } from 'react';
 import { useSettings } from '@/contexts/SettingsContext';
 
 interface SpeechSynthesisHook {
-  speak: (text: string) => Promise<void>;
+  speak: (text: string, onSpeechStart?: () => void, onSpeechEnd?: () => void) => Promise<void>;
   isSpeaking: boolean;
   stop: () => void;
   error: string | null;
@@ -14,7 +14,11 @@ export const useSpeechSynthesis = (): SpeechSynthesisHook => {
   const [error, setError] = useState<string | null>(null);
   const { settings } = useSettings();
 
-  const speak = useCallback(async (text: string): Promise<void> => {
+  const speak = useCallback(async (
+    text: string, 
+    onSpeechStart?: () => void, 
+    onSpeechEnd?: () => void
+  ): Promise<void> => {
     console.log('=== SPEECH SYNTHESIS START ===');
     console.log('Speech synthesis request:', {
       text: text.substring(0, 100) + '...',
@@ -35,6 +39,12 @@ export const useSpeechSynthesis = (): SpeechSynthesisHook => {
     try {
       setIsSpeaking(true);
       setError(null);
+
+      // Stop any ongoing speech first
+      speechSynthesis.cancel();
+      
+      // Wait a bit to ensure cancellation is processed
+      await new Promise(resolve => setTimeout(resolve, 200));
 
       // Wait for voices to be loaded
       let voices = speechSynthesis.getVoices();
@@ -90,7 +100,7 @@ export const useSpeechSynthesis = (): SpeechSynthesisHook => {
       }
 
       // Configure speech parameters
-      utterance.rate = 0.9; // Slightly slower for better comprehension
+      utterance.rate = 0.9;
       utterance.pitch = 1;
       utterance.volume = 1;
 
@@ -99,11 +109,13 @@ export const useSpeechSynthesis = (): SpeechSynthesisHook => {
       return new Promise((resolve, reject) => {
         utterance.onstart = () => {
           console.log('Speech synthesis started');
+          onSpeechStart?.();
         };
 
         utterance.onend = () => {
           console.log('=== SPEECH SYNTHESIS COMPLETED ===');
           setIsSpeaking(false);
+          onSpeechEnd?.();
           resolve();
         };
 
@@ -111,22 +123,18 @@ export const useSpeechSynthesis = (): SpeechSynthesisHook => {
           console.error('Speech synthesis error:', event.error);
           setIsSpeaking(false);
           setError(`Speech synthesis error: ${event.error}`);
+          onSpeechEnd?.();
           reject(new Error(event.error));
         };
 
-        // Cancel any ongoing speech first
-        speechSynthesis.cancel();
-        
-        // Small delay to ensure cancellation is processed
-        setTimeout(() => {
-          speechSynthesis.speak(utterance);
-        }, 100);
+        speechSynthesis.speak(utterance);
       });
     } catch (err) {
       setIsSpeaking(false);
       const errorMessage = err instanceof Error ? err.message : 'Speech synthesis failed';
       console.error('Speech synthesis failed:', errorMessage);
       setError(errorMessage);
+      onSpeechEnd?.();
       throw new Error(errorMessage);
     }
   }, [settings.voice, settings.targetLanguage]);
