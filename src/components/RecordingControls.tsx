@@ -56,6 +56,7 @@ const RecordingControls: React.FC<RecordingControlsProps> = ({
   };
 
   const isRecording = status === 'recording';
+  const isActive = status !== 'idle';
 
   return (
     <div className="flex flex-col items-center space-y-4">
@@ -65,33 +66,61 @@ const RecordingControls: React.FC<RecordingControlsProps> = ({
           variant={isRecording ? 'destructive' : 'default'}
           onClick={isRecording ? onStop : onStart}
           disabled={disabled || status === 'processing' || status === 'translating'}
-          className={`h-16 w-16 rounded-full p-0 ${
+          className={`h-20 w-20 rounded-full p-0 transition-all duration-300 ${
             isRecording
-              ? 'bg-red-500 hover:bg-red-600 animate-pulse'
-              : 'bg-blue-600 hover:bg-blue-700'
+              ? 'bg-red-500 hover:bg-red-600 shadow-lg shadow-red-500/50'
+              : isActive
+              ? 'bg-orange-500 hover:bg-orange-600 shadow-lg shadow-orange-500/50'
+              : 'bg-green-600 hover:bg-green-700 shadow-lg shadow-green-600/50'
           }`}
         >
           {isRecording ? (
-            <Square className="w-6 h-6" />
+            <Square className="w-8 h-8 text-white" fill="white" />
+          ) : isActive ? (
+            <MicOff className="w-8 h-8 text-white" />
           ) : (
-            <Mic className="w-6 h-6" />
+            <Mic className="w-8 h-8 text-white" />
           )}
         </Button>
 
         {isRecording && (
-          <div className="absolute -inset-2 border-2 border-red-500 rounded-full animate-ping opacity-75" />
+          <>
+            <div className="absolute -inset-4 border-4 border-red-400 rounded-full animate-ping opacity-75" />
+            <div className="absolute -inset-2 border-2 border-red-300 rounded-full animate-pulse opacity-50" />
+          </>
+        )}
+
+        {isActive && !isRecording && (
+          <div className="absolute -inset-2 border-2 border-orange-400 rounded-full animate-pulse opacity-75" />
         )}
       </div>
 
-      <Badge variant={getStatusColor() as any} className="text-sm px-3 py-1">
+      <Badge variant={getStatusColor() as any} className={`text-sm px-4 py-2 font-semibold ${
+        isRecording ? 'animate-pulse' : ''
+      }`}>
         {getStatusText()}
       </Badge>
 
-      <p className="text-sm text-muted-foreground text-center max-w-sm">
-        {isRecording
-          ? 'Говорите в микрофон. Нажмите кнопку чтобы остановить запись.'
-          : 'Нажмите кнопку чтобы начать запись и перевод речи в реальном времени.'}
-      </p>
+      <div className={`text-center max-w-sm transition-colors duration-300 ${
+        isRecording ? 'text-red-600 dark:text-red-400' : 
+        isActive ? 'text-orange-600 dark:text-orange-400' : 
+        'text-muted-foreground'
+      }`}>
+        <p className="text-sm font-medium">
+          {isRecording
+            ? 'Идет запись... Говорите в микрофон'
+            : isActive
+            ? 'Обрабатывается...'
+            : 'Нажмите чтобы начать запись'}
+        </p>
+        <p className="text-xs mt-1 opacity-75">
+          {isRecording
+            ? 'Нажмите квадрат чтобы остановить'
+            : isActive
+            ? 'Пожалуйста, подождите'
+            : 'Речь будет переведена в реальном времени'}
+        </p>
+      </div>
     </div>
   );
 };

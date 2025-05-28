@@ -36,6 +36,16 @@ export const useTranslationService = (): TranslationHook => {
   };
 
   const translateText = useCallback(async (text: string): Promise<TranslationResult> => {
+    console.log('Translation service called with:', {
+      text: text.substring(0, 50) + '...',
+      textLength: text.length,
+      hasApiKey: !!settings.openaiApiKey,
+      apiKeyLength: settings.openaiApiKey?.length || 0,
+      model: settings.openaiModel,
+      sourceLanguage: settings.sourceLanguage,
+      targetLanguage: settings.targetLanguage
+    });
+
     if (!text.trim()) {
       throw new Error('Text is empty');
     }
@@ -55,11 +65,12 @@ export const useTranslationService = (): TranslationHook => {
 
 ${text}`;
 
-      console.log('Sending translation request to OpenAI', {
+      console.log('Sending translation request to OpenAI:', {
         model: settings.openaiModel,
         sourceLanguage,
         targetLanguage,
-        textLength: text.length
+        textLength: text.length,
+        apiKeyPrefix: settings.openaiApiKey.substring(0, 7) + '...'
       });
 
       const response = await fetch('https://api.openai.com/v1/chat/completions', {
@@ -85,6 +96,8 @@ ${text}`;
         }),
       });
 
+      console.log('OpenAI API response status:', response.status);
+
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
         console.error('OpenAI API error response:', {
@@ -105,6 +118,11 @@ ${text}`;
       }
 
       const data = await response.json();
+      console.log('OpenAI API response data received:', {
+        hasChoices: !!data.choices,
+        choicesLength: data.choices?.length || 0,
+        usage: data.usage
+      });
       
       if (!data.choices || !data.choices[0] || !data.choices[0].message) {
         console.error('Invalid response structure from OpenAI:', data);
@@ -117,9 +135,9 @@ ${text}`;
         throw new Error('Empty translation received from OpenAI');
       }
 
-      console.log('Translation completed successfully', {
-        originalText: text,
-        translatedText,
+      console.log('Translation completed successfully:', {
+        originalText: text.substring(0, 30) + '...',
+        translatedText: translatedText.substring(0, 30) + '...',
         model: settings.openaiModel,
         usage: data.usage
       });
@@ -131,7 +149,7 @@ ${text}`;
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Translation failed';
       setError(errorMessage);
-      console.error('Translation error:', errorMessage);
+      console.error('Translation error:', errorMessage, err);
       throw new Error(errorMessage);
     } finally {
       setIsTranslating(false);

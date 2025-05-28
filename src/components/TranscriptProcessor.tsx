@@ -33,24 +33,42 @@ export const useTranscriptProcessor = ({
 
   // Handle transcript changes and trigger translation
   useEffect(() => {
-    if (!transcript || status !== 'recording') {
+    console.log('Transcript processor effect triggered:', {
+      transcript: transcript?.substring(0, 50) + '...',
+      transcriptLength: transcript?.length || 0,
+      status,
+      isListening,
+      lastProcessedLength: lastProcessedTranscript?.length || 0
+    });
+
+    if (!transcript || status !== 'recording' || !isListening) {
+      console.log('Skipping processing:', { transcript: !!transcript, status, isListening });
       return;
     }
 
     const currentTranscript = transcript.trim();
     
-    // Избегаем обработки одного и того же текста несколько раз
-    if (currentTranscript === lastProcessedTranscript || currentTranscript.length < 3) {
+    // Избегаем обработки одного и того же текста или слишком коротких фраз
+    if (currentTranscript === lastProcessedTranscript || 
+        currentTranscript.length < 5 ||
+        currentTranscript.startsWith(lastProcessedTranscript)) {
+      console.log('Skipping duplicate or short transcript:', {
+        current: currentTranscript.substring(0, 30),
+        last: lastProcessedTranscript.substring(0, 30),
+        currentLength: currentTranscript.length
+      });
       return;
     }
 
     const processTranscript = async () => {
       try {
+        console.log('Starting translation process for:', currentTranscript);
         setStatus('translating');
         setLastProcessedTranscript(currentTranscript);
         logger.log('info', 'Starting translation', { text: currentTranscript });
 
         const result = await translationService.translateText(currentTranscript);
+        console.log('Translation completed:', result);
         
         const entry: TranscriptionEntry = {
           id: Date.now().toString(),
@@ -59,20 +77,29 @@ export const useTranscriptProcessor = ({
           timestamp: new Date(),
         };
 
-        setTranscriptionEntries(prev => [...prev, entry]);
+        setTranscriptionEntries(prev => {
+          console.log('Adding new transcription entry');
+          return [...prev, entry];
+        });
 
+        console.log('Starting speech synthesis for:', result.translatedText);
         setStatus('playing');
         logger.log('info', 'Playing translation', { translation: result.translatedText });
+        
         await speechSynthesis.speak(result.translatedText);
+        console.log('Speech synthesis completed');
         
         // Возвращаемся к записи только если мы все еще слушаем
         if (isListening) {
           setStatus('recording');
+          console.log('Returned to recording state');
         } else {
           setStatus('idle');
+          console.log('Returned to idle state');
         }
       } catch (err) {
         const errorMessage = err instanceof Error ? err.message : 'Translation failed';
+        console.error('Translation/speech error:', errorMessage);
         setError(errorMessage);
         logger.log('error', 'Translation failed', { error: errorMessage });
         
@@ -86,13 +113,18 @@ export const useTranscriptProcessor = ({
     };
 
     // Debounce the translation to avoid too many requests
-    const timeoutId = setTimeout(processTranscript, 2000);
-    return () => clearTimeout(timeoutId);
+    const timeoutId = setTimeout(processTranscript, 1500);
+    return () => {
+      console.log('Clearing translation timeout');
+      clearTimeout(timeoutId);
+    };
   }, [transcript, isListening, status, translationService, speechSynthesis, logger, lastProcessedTranscript, setLastProcessedTranscript, setStatus, setTranscriptionEntries, setError]);
 
   // Синхронизируем статус с состоянием распознавания речи
   useEffect(() => {
+    console.log('Status sync effect:', { isListening, status });
     if (!isListening && status === 'recording') {
+      console.log('Stopping recording - setting status to idle');
       setStatus('idle');
     }
   }, [isListening, status, setStatus]);
