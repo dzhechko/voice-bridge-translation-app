@@ -24,6 +24,7 @@ const IndexContent: React.FC = () => {
   const [status, setStatus] = useState<RecordingStatus>('idle');
   const [transcriptionEntries, setTranscriptionEntries] = useState<TranscriptionEntry[]>([]);
   const [error, setError] = useState<string | null>(null);
+  const [lastProcessedTranscript, setLastProcessedTranscript] = useState('');
 
   const speechRecognition = useSpeechRecognition();
   const translationService = useTranslationService();
@@ -47,6 +48,7 @@ const IndexContent: React.FC = () => {
     try {
       setError(null);
       setStatus('recording');
+      setLastProcessedTranscript('');
       logger.log('info', 'Recording started');
       await speechRecognition.startListening();
     } catch (err) {
@@ -58,48 +60,79 @@ const IndexContent: React.FC = () => {
   }, [speechRecognition, logger]);
 
   const handleStopRecording = useCallback(() => {
+    console.log('Stopping recording...');
     speechRecognition.stopListening();
+    speechSynthesis.stop();
     setStatus('idle');
+    setLastProcessedTranscript('');
     logger.log('info', 'Recording stopped');
-  }, [speechRecognition, logger]);
+  }, [speechRecognition, speechSynthesis, logger]);
 
   // Handle transcript changes and trigger translation
   useEffect(() => {
-    if (speechRecognition.transcript && status === 'recording') {
-      const processTranscript = async () => {
-        try {
-          setStatus('translating');
-          logger.log('info', 'Starting translation', { text: speechRecognition.transcript });
-
-          const result = await translationService.translateText(speechRecognition.transcript);
-          
-          const entry: TranscriptionEntry = {
-            id: Date.now().toString(),
-            original: result.originalText,
-            translated: result.translatedText,
-            timestamp: new Date(),
-          };
-
-          setTranscriptionEntries(prev => [...prev, entry]);
-
-          setStatus('playing');
-          logger.log('info', 'Playing translation', { translation: result.translatedText });
-          await speechSynthesis.speak(result.translatedText);
-          
-          setStatus('recording');
-        } catch (err) {
-          const errorMessage = err instanceof Error ? err.message : 'Translation failed';
-          setError(errorMessage);
-          logger.log('error', 'Translation failed', { error: errorMessage });
-          setStatus('recording');
-        }
-      };
-
-      // Debounce the translation to avoid too many requests
-      const timeoutId = setTimeout(processTranscript, 1000);
-      return () => clearTimeout(timeoutId);
+    if (!speechRecognition.transcript || status !== 'recording') {
+      return;
     }
-  }, [speechRecognition.transcript, status, translationService, speechSynthesis, logger]);
+
+    const currentTranscript = speechRecognition.transcript.trim();
+    
+    // Избегаем обработки одного и того же текста несколько раз
+    if (currentTranscript === lastProcessedTranscript || currentTranscript.length < 3) {
+      return;
+    }
+
+    const processTranscript = async () => {
+      try {
+        setStatus('translating');
+        setLastProcessedTranscript(currentTranscript);
+        logger.log('info', 'Starting translation', { text: currentTranscript });
+
+        const result = await translationService.translateText(currentTranscript);
+        
+        const entry: TranscriptionEntry = {
+          id: Date.now().toString(),
+          original: result.originalText,
+          translated: result.translatedText,
+          timestamp: new Date(),
+        };
+
+        setTranscriptionEntries(prev => [...prev, entry]);
+
+        setStatus('playing');
+        logger.log('info', 'Playing translation', { translation: result.translatedText });
+        await speechSynthesis.speak(result.translatedText);
+        
+        // Возвращаемся к записи только если мы все еще слушаем
+        if (speechRecognition.isListening) {
+          setStatus('recording');
+        } else {
+          setStatus('idle');
+        }
+      } catch (err) {
+        const errorMessage = err instanceof Error ? err.message : 'Translation failed';
+        setError(errorMessage);
+        logger.log('error', 'Translation failed', { error: errorMessage });
+        
+        // Возвращаемся к записи или idle в зависимости от состояния
+        if (speechRecognition.isListening) {
+          setStatus('recording');
+        } else {
+          setStatus('idle');
+        }
+      }
+    };
+
+    // Debounce the translation to avoid too many requests
+    const timeoutId = setTimeout(processTranscript, 2000);
+    return () => clearTimeout(timeoutId);
+  }, [speechRecognition.transcript, speechRecognition.isListening, status, translationService, speechSynthesis, logger, lastProcessedTranscript]);
+
+  // Синхронизируем статус с состоянием распознавания речи
+  useEffect(() => {
+    if (!speechRecognition.isListening && status === 'recording') {
+      setStatus('idle');
+    }
+  }, [speechRecognition.isListening, status]);
 
   const retryLastAction = () => {
     setError(null);

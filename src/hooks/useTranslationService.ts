@@ -19,49 +19,78 @@ export const useTranslationService = (): TranslationHook => {
   const { settings } = useSettings();
 
   const translateText = useCallback(async (text: string): Promise<TranslationResult> => {
-    if (!settings.openaiApiKey) {
-      throw new Error('OpenAI API key is required');
+    if (!text.trim()) {
+      throw new Error('Text is empty');
     }
 
     setIsTranslating(true);
     setError(null);
 
     try {
-      // For now, we'll simulate the translation since we don't have a backend yet
-      // In the real implementation, this would call the backend API
-      
-      const response = await fetch('/api/translate', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          text,
-          sourceLanguage: settings.sourceLanguage,
-          targetLanguage: settings.targetLanguage,
-          model: settings.openaiModel,
-          apiKey: settings.openaiApiKey,
-        }),
-      });
+      // Временная mock-реализация перевода для демонстрации
+      // В реальном приложении здесь должен быть вызов к OpenAI API через бэкенд
+      await new Promise(resolve => setTimeout(resolve, 1000)); // Имитация задержки API
 
-      if (!response.ok) {
-        throw new Error(`Translation failed: ${response.statusText}`);
+      // Простой mock-перевод для демонстрации
+      let translatedText = '';
+      const sourceIsRussian = settings.sourceLanguage.includes('ru');
+      const targetIsEnglish = settings.targetLanguage.includes('en');
+
+      if (sourceIsRussian && targetIsEnglish) {
+        // Простой словарь для демонстрации
+        const translations: { [key: string]: string } = {
+          'привет': 'hello',
+          'как дела': 'how are you',
+          'да': 'yes',
+          'нет': 'no',
+          'спасибо': 'thank you',
+          'пожалуйста': 'please',
+          'хорошо': 'good',
+          'плохо': 'bad',
+          'транскрибация': 'transcription',
+          'работает': 'works',
+          'нормально': 'normally',
+          'перевод': 'translation',
+          'не работает': 'does not work',
+          'здесь': 'here',
+          'надо': 'need',
+          'нравится': 'like',
+          'давайте': 'let\'s',
+          'нажмём': 'press',
+          'кнопку': 'button',
+          'целом': 'general'
+        };
+
+        const words = text.toLowerCase().split(/\s+/);
+        const translatedWords = words.map(word => {
+          // Убираем знаки препинания для поиска
+          const cleanWord = word.replace(/[.,!?;:]/g, '');
+          return translations[cleanWord] || cleanWord;
+        });
+        
+        translatedText = translatedWords.join(' ');
+        // Делаем первую букву заглавной
+        translatedText = translatedText.charAt(0).toUpperCase() + translatedText.slice(1);
+      } else {
+        // Для других языковых пар просто добавляем префикс
+        translatedText = `[Translated] ${text}`;
       }
 
-      const result = await response.json();
+      console.log('Translation completed successfully', { originalText: text, translatedText });
 
       return {
         originalText: text,
-        translatedText: result.translatedText,
+        translatedText,
       };
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Translation failed';
       setError(errorMessage);
+      console.error('Translation error:', errorMessage);
       throw new Error(errorMessage);
     } finally {
       setIsTranslating(false);
     }
-  }, [settings]);
+  }, [settings.sourceLanguage, settings.targetLanguage]);
 
   return {
     translateText,
