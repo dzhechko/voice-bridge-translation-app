@@ -45,15 +45,14 @@ export const useTranscriptProcessor = ({
       lastProcessedLength: lastProcessedTranscript?.length || 0
     });
 
-    // Only process if we're actively recording and listening
-    if (!transcript || status !== 'recording' || !isListening) {
+    // Only process if we have a transcript and we're in recording mode
+    if (!transcript || status !== 'recording') {
       console.log('Skipping processing:', { 
         hasTranscript: !!transcript, 
         status, 
         isListening,
         reason: !transcript ? 'no transcript' : 
-                status !== 'recording' ? 'status not recording' : 
-                !isListening ? 'not listening' : 'unknown'
+                status !== 'recording' ? 'status not recording' : 'unknown'
       });
       return;
     }
@@ -63,8 +62,8 @@ export const useTranscriptProcessor = ({
     // More sophisticated duplicate detection
     if (currentTranscript === lastProcessedTranscript || 
         currentTranscript.length < 10 ||
-        currentTranscript.startsWith(lastProcessedTranscript) &&
-        currentTranscript.length - lastProcessedTranscript.length < 5) {
+        (currentTranscript.startsWith(lastProcessedTranscript) &&
+        currentTranscript.length - lastProcessedTranscript.length < 5)) {
       console.log('Skipping duplicate or insufficient transcript:', {
         current: currentTranscript.substring(0, 30),
         last: lastProcessedTranscript.substring(0, 30),
@@ -122,20 +121,16 @@ export const useTranscriptProcessor = ({
         
         console.log('Speech synthesis completed');
         
-        // Restart speech recognition if we should still be listening
-        if (isListening) {
-          console.log('Restarting speech recognition...');
-          try {
-            await startSpeechRecognition();
-            setStatus('recording');
-            console.log('Speech recognition restarted successfully');
-          } catch (restartError) {
-            console.error('Failed to restart speech recognition:', restartError);
-            setStatus('idle');
-          }
-        } else {
+        // Restart speech recognition after speech synthesis
+        console.log('Restarting speech recognition...');
+        try {
+          await startSpeechRecognition();
+          setStatus('recording');
+          console.log('Speech recognition restarted successfully');
+        } catch (restartError) {
+          console.error('Failed to restart speech recognition:', restartError);
           setStatus('idle');
-          console.log('Returned to idle state');
+          setError('Failed to restart speech recognition');
         }
       } catch (err) {
         const errorMessage = err instanceof Error ? err.message : 'Translation failed';
@@ -143,12 +138,8 @@ export const useTranscriptProcessor = ({
         setError(errorMessage);
         logger.log('error', 'Translation failed', { error: errorMessage });
         
-        // Return to appropriate state
-        if (isListening) {
-          setStatus('recording');
-        } else {
-          setStatus('idle');
-        }
+        // Return to recording state if still supposed to be listening
+        setStatus('recording');
       }
     };
 
@@ -158,7 +149,7 @@ export const useTranscriptProcessor = ({
       console.log('Clearing translation timeout');
       clearTimeout(timeoutId);
     };
-  }, [transcript, isListening, status, translationService, speechSynthesis, logger, lastProcessedTranscript, setLastProcessedTranscript, setStatus, setTranscriptionEntries, setError, stopSpeechRecognition, startSpeechRecognition]);
+  }, [transcript, status, translationService, speechSynthesis, logger, lastProcessedTranscript, setLastProcessedTranscript, setStatus, setTranscriptionEntries, setError, stopSpeechRecognition, startSpeechRecognition]);
 
   return { logger };
 };

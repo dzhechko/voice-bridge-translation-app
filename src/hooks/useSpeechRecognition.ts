@@ -70,6 +70,7 @@ export const useSpeechRecognition = (): SpeechRecognitionHook => {
   const { settings } = useSettings();
   const recognitionRef = useRef<SpeechRecognition | null>(null);
   const finalTranscriptRef = useRef('');
+  const shouldBeListeningRef = useRef(false);
 
   const startListening = useCallback(async () => {
     console.log('=== SPEECH RECOGNITION START ===');
@@ -87,6 +88,8 @@ export const useSpeechRecognition = (): SpeechRecognitionHook => {
         recognitionRef.current.stop();
         recognitionRef.current = null;
       }
+
+      shouldBeListeningRef.current = true;
 
       const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
       const recognition = new SpeechRecognition();
@@ -146,8 +149,9 @@ export const useSpeechRecognition = (): SpeechRecognitionHook => {
         
         switch (event.error) {
           case 'no-speech':
-            errorMessage = 'No speech detected. Please try speaking again.';
-            break;
+            // Don't treat no-speech as a fatal error, just continue listening
+            console.log('No speech detected, continuing to listen');
+            return;
           case 'audio-capture':
             errorMessage = 'Microphone not found or not working. Please check your microphone.';
             break;
@@ -164,22 +168,24 @@ export const useSpeechRecognition = (): SpeechRecognitionHook => {
         
         setError(errorMessage);
         setIsListening(false);
+        shouldBeListeningRef.current = false;
       };
 
       recognition.onend = () => {
         console.log('Speech recognition ended');
         setIsListening(false);
         
-        // Auto-restart if we're still supposed to be listening
-        // This handles cases where recognition stops unexpectedly
-        if (recognitionRef.current && !error) {
+        // Only auto-restart if we should still be listening AND no error occurred
+        if (shouldBeListeningRef.current && !error) {
           console.log('Auto-restarting speech recognition...');
           setTimeout(() => {
-            if (recognitionRef.current) {
+            if (shouldBeListeningRef.current && recognitionRef.current) {
               try {
                 recognitionRef.current.start();
               } catch (err) {
                 console.error('Failed to restart recognition:', err);
+                setError('Failed to restart speech recognition');
+                shouldBeListeningRef.current = false;
               }
             }
           }, 100);
@@ -195,11 +201,14 @@ export const useSpeechRecognition = (): SpeechRecognitionHook => {
       console.error(errorMsg, err);
       setError(errorMsg);
       setIsListening(false);
+      shouldBeListeningRef.current = false;
     }
   }, [settings.sourceLanguage, error]);
 
   const stopListening = useCallback(() => {
     console.log('=== SPEECH RECOGNITION STOP ===');
+    
+    shouldBeListeningRef.current = false;
     
     if (recognitionRef.current) {
       console.log('Stopping speech recognition...');

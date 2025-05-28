@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useCallback } from 'react';
 import Header from '@/components/Header';
 import PrivacyModal from '@/components/PrivacyModal';
@@ -160,6 +159,21 @@ const MainApp: React.FC = () => {
       });
     }
   }, [speechRecognition.error, toast]);
+
+  // Sync status with speech recognition state
+  useEffect(() => {
+    console.log('Status sync check:', {
+      status,
+      isListening: speechRecognition.isListening,
+      shouldSync: status === 'recording' && !speechRecognition.isListening
+    });
+
+    // If we think we're recording but speech recognition stopped unexpectedly
+    if (status === 'recording' && !speechRecognition.isListening && !speechRecognition.error) {
+      console.log('Detected status desync, correcting to idle');
+      setStatus('idle');
+    }
+  }, [status, speechRecognition.isListening, speechRecognition.error]);
 
   const retryLastAction = () => {
     setError(null);
