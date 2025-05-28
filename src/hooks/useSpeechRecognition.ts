@@ -30,31 +30,31 @@ declare global {
   }
 
   interface SpeechRecognitionEvent extends Event {
-    resultIndex: number;
-    results: SpeechRecognitionResultList;
+    readonly resultIndex: number;
+    readonly results: SpeechRecognitionResultList;
   }
 
   interface SpeechRecognitionResultList {
-    length: number;
+    readonly length: number;
     item(index: number): SpeechRecognitionResult;
     [index: number]: SpeechRecognitionResult;
   }
 
   interface SpeechRecognitionResult {
-    length: number;
+    readonly length: number;
     item(index: number): SpeechRecognitionAlternative;
     [index: number]: SpeechRecognitionAlternative;
-    isFinal: boolean;
+    readonly isFinal: boolean;
   }
 
   interface SpeechRecognitionAlternative {
-    transcript: string;
-    confidence: number;
+    readonly transcript: string;
+    readonly confidence: number;
   }
 
   interface SpeechRecognitionErrorEvent extends Event {
-    error: string;
-    message: string;
+    readonly error: string;
+    readonly message: string;
   }
 
   const SpeechRecognition: {
