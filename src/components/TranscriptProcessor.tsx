@@ -123,9 +123,7 @@ export const useTranscriptProcessor = ({
         console.log('Speech synthesis completed');
         
         // Restart speech recognition if we should still be listening
-        // Check current status instead of the status from closure
-        const currentStatus = status;
-        if (isListening && currentStatus !== 'idle') {
+        if (isListening) {
           console.log('Restarting speech recognition...');
           try {
             await startSpeechRecognition();
