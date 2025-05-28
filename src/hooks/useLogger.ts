@@ -1,7 +1,7 @@
 
 import { useState, useCallback } from 'react';
 
-interface LogEntry {
+export interface LogEntry {
   id: string;
   timestamp: string;
   level: 'info' | 'warn' | 'error';
