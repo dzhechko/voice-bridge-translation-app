@@ -1,4 +1,3 @@
-
 # Welcome to your Lovable project
 
 ## Project info
@@ -41,7 +40,7 @@ graph TB
     W[voiceUtils] --> X[VoiceSelect]
     E --> X
     
-    H --> Y[TranscriptionEntry[]]
+    H --> Y[TranscriptionEntry Components]
     I --> Y
     
     style A fill:#e1f5fe
