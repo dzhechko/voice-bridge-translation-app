@@ -1,8 +1,63 @@
+
 # Welcome to your Lovable project
 
 ## Project info
 
 **URL**: https://lovable.dev/projects/3f77e39e-8d2a-4d67-a758-dbcada8a6c90
+
+## Architecture Overview
+
+This is a real-time speech recognition and translation application built with React and TypeScript. Below is the architecture diagram showing the main components and their interactions:
+
+```mermaid
+graph TB
+    A[MainApp] --> B[Header]
+    A --> C[MainContent]
+    A --> D[PrivacyModal]
+    A --> E[SettingsPanel]
+    A --> F[ErrorHandler]
+    
+    C --> G[RecordingControls]
+    C --> H[TranscriptionDisplay]
+    C --> I[ExportPanel]
+    
+    A --> J[useMainAppState]
+    A --> K[useRecordingActions]
+    A --> L[useAppEffects]
+    A --> M[useTranscriptProcessing]
+    
+    K --> N[useSpeechRecognition]
+    M --> O[useProcessingWorkflow]
+    O --> P[useTranslationService]
+    
+    N --> Q[Browser Speech Recognition API]
+    P --> R[OpenAI API]
+    
+    S[LanguageContext] --> A
+    T[ThemeContext] --> A
+    U[SettingsContext] --> A
+    
+    V[transcriptValidation] --> M
+    W[voiceUtils] --> X[VoiceSelect]
+    E --> X
+    
+    H --> Y[TranscriptionEntry[]]
+    I --> Y
+    
+    style A fill:#e1f5fe
+    style Q fill:#ffecb3
+    style R fill:#ffecb3
+    style S fill:#f3e5f5
+    style T fill:#f3e5f5
+    style U fill:#f3e5f5
+```
+
+### Component Flow:
+1. **MainApp** serves as the root component managing global state
+2. **Speech Recognition** captures audio input via browser APIs
+3. **Transcript Processing** validates and processes speech input
+4. **Translation Service** communicates with OpenAI API for translation
+5. **UI Components** display results and provide user controls
 
 ## How can I edit this code?
 
