@@ -11,6 +11,7 @@ interface UseRecordingActionsProps {
   setStatus: (status: RecordingStatus) => void;
   setError: (error: string | null) => void;
   setLastProcessedTranscript: (text: string) => void;
+  shouldStopRef: React.MutableRefObject<boolean>;
 }
 
 export const useRecordingActions = ({
@@ -18,6 +19,7 @@ export const useRecordingActions = ({
   setStatus,
   setError,
   setLastProcessedTranscript,
+  shouldStopRef,
 }: UseRecordingActionsProps) => {
   const { settings } = useSettings();
   const { toast } = useToast();
@@ -26,6 +28,10 @@ export const useRecordingActions = ({
 
   const handleStartRecording = useCallback(async () => {
     console.log('=== START RECORDING INITIATED ===');
+    
+    // Reset stop flag when starting new recording
+    shouldStopRef.current = false;
+    console.log('shouldStopRef reset to false');
     
     // Check API key
     if (!settings.openaiApiKey) {
@@ -82,12 +88,16 @@ export const useRecordingActions = ({
         variant: "destructive",
       });
     }
-  }, [speechRecognition, settings.openaiApiKey, toast, setError, setStatus, setLastProcessedTranscript]);
+  }, [speechRecognition, settings.openaiApiKey, toast, setError, setStatus, setLastProcessedTranscript, shouldStopRef]);
 
   const handleStopRecording = useCallback(() => {
     console.log('=== STOP RECORDING INITIATED ===');
     console.log('Current status:', status);
     console.log('Is listening:', speechRecognition.isListening);
+    
+    // Set stop flag immediately to signal all async processes
+    shouldStopRef.current = true;
+    console.log('shouldStopRef set to true - stopping all async processes');
     
     try {
       // Stop speech synthesis immediately
@@ -116,7 +126,7 @@ export const useRecordingActions = ({
       setLastProcessedTranscript('');
       setError(null);
     }
-  }, [speechRecognition, speechSynthesis, status, toast, setStatus, setLastProcessedTranscript, setError]);
+  }, [speechRecognition, speechSynthesis, status, toast, setStatus, setLastProcessedTranscript, setError, shouldStopRef]);
 
   return {
     handleStartRecording,

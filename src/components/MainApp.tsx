@@ -9,6 +9,7 @@ import { useTranscriptProcessing } from '@/hooks/useTranscriptProcessing';
 import { useMainAppState } from '@/hooks/useMainAppState';
 import { useRecordingActions } from '@/hooks/useRecordingActions';
 import { useAppEffects } from '@/hooks/useAppEffects';
+import { useSpeechRecognition } from '@/hooks/useSpeechRecognition';
 
 const MainApp: React.FC = () => {
   const {
@@ -26,15 +27,17 @@ const MainApp: React.FC = () => {
     setLastProcessedTranscript,
   } = useMainAppState();
 
+  const speechRecognition = useSpeechRecognition();
+
   const {
     handleStartRecording,
     handleStopRecording,
-    speechRecognition,
   } = useRecordingActions({
     status,
     setStatus,
     setError,
     setLastProcessedTranscript,
+    shouldStopRef: speechRecognition.shouldStopRef,
   });
 
   useAppEffects({
@@ -57,6 +60,7 @@ const MainApp: React.FC = () => {
     setError,
     stopSpeechRecognition: speechRecognition.stopListening,
     startSpeechRecognition: speechRecognition.startListening,
+    shouldStopRef: speechRecognition.shouldStopRef,
   });
 
   const handlePrivacyAccept = () => {

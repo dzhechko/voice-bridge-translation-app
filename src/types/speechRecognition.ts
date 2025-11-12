@@ -58,4 +58,5 @@ export interface SpeechRecognitionHook {
   startListening: () => Promise<void>;
   stopListening: () => void;
   error: string | null;
+  shouldStopRef: React.MutableRefObject<boolean>;
 }
