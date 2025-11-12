@@ -1,8 +1,7 @@
 
 import { useCallback } from 'react';
 import { RecordingStatus } from '@/components/RecordingControls';
-import { useSpeechRecognition } from '@/hooks/useSpeechRecognition';
-import { useSpeechSynthesis } from '@/hooks/useSpeechSynthesis';
+import { SpeechRecognitionHook } from '@/types/speechRecognition';
 import { useSettings } from '@/contexts/SettingsContext';
 import { useToast } from '@/hooks/use-toast';
 
@@ -12,6 +11,11 @@ interface UseRecordingActionsProps {
   setError: (error: string | null) => void;
   setLastProcessedTranscript: (text: string) => void;
   shouldStopRef: React.MutableRefObject<boolean>;
+  speechRecognition: SpeechRecognitionHook;
+  speechSynthesis: {
+    stop: () => void;
+    speak: (text: string, onSpeechStart?: () => void, onSpeechEnd?: () => void) => Promise<void>;
+  };
 }
 
 export const useRecordingActions = ({
@@ -20,11 +24,11 @@ export const useRecordingActions = ({
   setError,
   setLastProcessedTranscript,
   shouldStopRef,
+  speechRecognition,
+  speechSynthesis,
 }: UseRecordingActionsProps) => {
   const { settings } = useSettings();
   const { toast } = useToast();
-  const speechRecognition = useSpeechRecognition();
-  const speechSynthesis = useSpeechSynthesis();
 
   const handleStartRecording = useCallback(async () => {
     console.log('=== START RECORDING INITIATED ===');
@@ -98,6 +102,8 @@ export const useRecordingActions = ({
     // Set stop flag immediately to signal all async processes
     shouldStopRef.current = true;
     console.log('shouldStopRef set to true - stopping all async processes');
+    console.log('shouldStopRef reference:', shouldStopRef);
+    console.log('shouldStopRef.current value:', shouldStopRef.current);
     
     try {
       // Stop speech synthesis immediately
@@ -131,7 +137,5 @@ export const useRecordingActions = ({
   return {
     handleStartRecording,
     handleStopRecording,
-    speechRecognition,
-    speechSynthesis,
   };
 };

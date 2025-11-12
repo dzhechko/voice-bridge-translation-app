@@ -10,6 +10,7 @@ import { useMainAppState } from '@/hooks/useMainAppState';
 import { useRecordingActions } from '@/hooks/useRecordingActions';
 import { useAppEffects } from '@/hooks/useAppEffects';
 import { useSpeechRecognition } from '@/hooks/useSpeechRecognition';
+import { useSpeechSynthesis } from '@/hooks/useSpeechSynthesis';
 
 const MainApp: React.FC = () => {
   const {
@@ -28,6 +29,7 @@ const MainApp: React.FC = () => {
   } = useMainAppState();
 
   const speechRecognition = useSpeechRecognition();
+  const speechSynthesis = useSpeechSynthesis();
 
   const {
     handleStartRecording,
@@ -38,6 +40,8 @@ const MainApp: React.FC = () => {
     setError,
     setLastProcessedTranscript,
     shouldStopRef: speechRecognition.shouldStopRef,
+    speechRecognition,
+    speechSynthesis,
   });
 
   useAppEffects({
