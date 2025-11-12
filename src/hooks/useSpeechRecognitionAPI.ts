@@ -9,6 +9,7 @@ interface UseSpeechRecognitionAPIProps {
   recognitionRef: React.MutableRefObject<SpeechRecognition | null>;
   finalTranscriptRef: React.MutableRefObject<string>;
   shouldBeListeningRef: React.MutableRefObject<boolean>;
+  isRestartingRef: React.MutableRefObject<boolean>;
 }
 
 export const useSpeechRecognitionAPI = ({
@@ -18,6 +19,7 @@ export const useSpeechRecognitionAPI = ({
   recognitionRef,
   finalTranscriptRef,
   shouldBeListeningRef,
+  isRestartingRef,
 }: UseSpeechRecognitionAPIProps) => {
   const { settings } = useSettings();
 
@@ -81,11 +83,11 @@ export const useSpeechRecognitionAPI = ({
   }, [setTranscript, finalTranscriptRef]);
 
   const handleError = useCallback((event: SpeechRecognitionErrorEvent) => {
-    console.error('Speech recognition error:', event.error, event.message);
+    console.error('[SR API] Speech recognition error:', event.error, event.message);
     
-    // Handle no-speech error more gracefully - don't treat as fatal
+    // Handle no-speech error more gracefully - just log it
     if (event.error === 'no-speech') {
-      console.log('No speech detected, continuing to listen...');
+      console.log('[SR API] No speech detected, will continue listening...');
       return;
     }
     
@@ -102,7 +104,7 @@ export const useSpeechRecognitionAPI = ({
         errorMessage = 'Network error occurred during speech recognition.';
         break;
       case 'aborted':
-        console.log('Speech recognition was aborted - this is expected when stopping');
+        console.log('[SR API] Speech recognition was aborted');
         // Don't treat aborted as an error if we're intentionally stopping
         if (!shouldBeListeningRef.current) {
           return;
@@ -111,37 +113,23 @@ export const useSpeechRecognitionAPI = ({
         break;
     }
     
+    console.error('[SR API] Fatal error:', errorMessage);
     setError(errorMessage);
     setIsListening(false);
     shouldBeListeningRef.current = false;
-  }, [setError, setIsListening, shouldBeListeningRef]);
+    isRestartingRef.current = false;
+  }, [setError, setIsListening, shouldBeListeningRef, isRestartingRef]);
 
   const handleEnd = useCallback(() => {
-    console.log('Speech recognition ended, shouldBeListening:', shouldBeListeningRef.current);
+    console.log('[SR API] Speech recognition ended, shouldBeListening:', shouldBeListeningRef.current);
     setIsListening(false);
+    isRestartingRef.current = false;
     
-    // Only auto-restart if we should still be listening AND we haven't been manually stopped
-    if (shouldBeListeningRef.current) {
-      console.log('Auto-restarting speech recognition after natural end...');
-      setTimeout(() => {
-        if (shouldBeListeningRef.current && recognitionRef.current) {
-          try {
-            recognitionRef.current.start();
-            console.log('Speech recognition auto-restarted successfully');
-          } catch (err) {
-            console.error('Failed to restart recognition:', err);
-            // Only set error if we're still supposed to be listening
-            if (shouldBeListeningRef.current) {
-              setError('Failed to restart speech recognition');
-              shouldBeListeningRef.current = false;
-            }
-          }
-        }
-      }, 500); // Increased timeout for more stability
-    } else {
-      console.log('Not restarting speech recognition - shouldBeListening is false');
+    // Auto-restart will be handled by useAppEffects for better control
+    if (!shouldBeListeningRef.current) {
+      console.log('[SR API] Not restarting - shouldBeListening is false');
     }
-  }, [setIsListening, shouldBeListeningRef, recognitionRef, setError]);
+  }, [setIsListening, shouldBeListeningRef, isRestartingRef]);
 
   return {
     createRecognition,

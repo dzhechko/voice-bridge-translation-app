@@ -63,9 +63,9 @@ export const useAppEffects = ({
     }
   }, [speechRecognition.error, toast, setError, setStatus, status]);
 
-  // Improved status synchronization with speech recognition state
+  // Improved status synchronization with automatic restart
   useEffect(() => {
-    console.log('Status sync check:', {
+    console.log('[AppEffects] Status sync check:', {
       status,
       isListening: speechRecognition.isListening,
       hasError: !!speechRecognition.error,
@@ -77,24 +77,31 @@ export const useAppEffects = ({
       return;
     }
 
-    // If we're in recording state but not listening and no error occurred
+    // If we're in recording state but not listening (desync detected)
     if (status === 'recording' && !speechRecognition.isListening) {
-      console.log('Recording state but not listening - may be temporary during restart');
-      // Give a brief moment for potential restart before correcting
+      console.log('[AppEffects] Detected status desync: status is recording but not listening');
+      
+      // Wait a moment to see if it's just a temporary state during natural end
       const timeoutId = setTimeout(() => {
+        // Double-check the state hasn't changed
         if (status === 'recording' && !speechRecognition.isListening && !speechRecognition.error) {
-          console.log('Correcting status: recording but not listening');
-          setStatus('idle');
+          console.log('[AppEffects] Desync confirmed after timeout - attempting auto-restart');
+          
+          // Attempt to restart speech recognition
+          speechRecognition.startListening().catch((err) => {
+            console.error('[AppEffects] Auto-restart failed:', err);
+            setStatus('idle');
+          });
         }
-      }, 1000);
+      }, 1500); // Give more time for natural restart cycles
       
       return () => clearTimeout(timeoutId);
     }
     
     // If we're listening but not in an active state
     if (speechRecognition.isListening && status === 'idle') {
-      console.log('Listening but status is idle - correcting to recording');
+      console.log('[AppEffects] Listening but status is idle - correcting to recording');
       setStatus('recording');
     }
-  }, [status, speechRecognition.isListening, speechRecognition.error, setStatus]);
+  }, [status, speechRecognition.isListening, speechRecognition.error, speechRecognition.startListening, setStatus]);
 };
