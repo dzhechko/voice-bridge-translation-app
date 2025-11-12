@@ -16,6 +16,7 @@ interface TranscriptProcessingProps {
   setError: (error: string | null) => void;
   stopSpeechRecognition: () => void;
   startSpeechRecognition: () => Promise<void>;
+  shouldStopRef: React.MutableRefObject<boolean>;
 }
 
 export const useTranscriptProcessing = ({
@@ -29,6 +30,7 @@ export const useTranscriptProcessing = ({
   setError,
   stopSpeechRecognition,
   startSpeechRecognition,
+  shouldStopRef,
 }: TranscriptProcessingProps) => {
   const { processTranscript, logger } = useProcessingWorkflow({
     setStatus,
@@ -36,6 +38,7 @@ export const useTranscriptProcessing = ({
     setError,
     stopSpeechRecognition,
     startSpeechRecognition,
+    shouldStopRef,
   });
 
   // Handle transcript changes and trigger translation

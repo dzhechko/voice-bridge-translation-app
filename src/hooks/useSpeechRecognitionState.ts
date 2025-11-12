@@ -10,6 +10,7 @@ export const useSpeechRecognitionState = () => {
   const finalTranscriptRef = useRef('');
   const shouldBeListeningRef = useRef(false);
   const isRestartingRef = useRef(false);
+  const shouldStopRef = useRef(false);
 
   return {
     isListening,
@@ -22,5 +23,6 @@ export const useSpeechRecognitionState = () => {
     finalTranscriptRef,
     shouldBeListeningRef,
     isRestartingRef,
+    shouldStopRef,
   };
 };

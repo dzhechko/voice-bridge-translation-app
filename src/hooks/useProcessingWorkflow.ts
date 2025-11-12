@@ -12,6 +12,7 @@ interface ProcessingWorkflowProps {
   setError: (error: string | null) => void;
   stopSpeechRecognition: () => void;
   startSpeechRecognition: () => Promise<void>;
+  shouldStopRef: React.MutableRefObject<boolean>;
 }
 
 export const useProcessingWorkflow = ({
@@ -20,6 +21,7 @@ export const useProcessingWorkflow = ({
   setError,
   stopSpeechRecognition,
   startSpeechRecognition,
+  shouldStopRef,
 }: ProcessingWorkflowProps) => {
   const translationService = useTranslationService();
   const speechSynthesis = useSpeechSynthesis();
@@ -51,6 +53,13 @@ export const useProcessingWorkflow = ({
         return [...prev, entry];
       });
 
+      // Check if stop was requested before starting speech synthesis
+      if (shouldStopRef.current) {
+        console.log('Stop requested before speech synthesis - skipping synthesis');
+        setStatus('idle');
+        return;
+      }
+
       console.log('=== STARTING SPEECH SYNTHESIS ===');
       console.log('Text to speak:', result.translatedText);
       setStatus('playing');
@@ -72,10 +81,9 @@ export const useProcessingWorkflow = ({
       
       console.log('Speech synthesis completed');
       
-      // Check current status to decide if we should restart
-      // Use a more reliable method to check if we should continue
-      const shouldContinue = document.querySelector('[data-recording-status]')?.getAttribute('data-recording-status') !== 'idle';
-      console.log('Should continue recording after synthesis:', shouldContinue);
+      // Check shouldStopRef to decide if we should restart
+      const shouldContinue = !shouldStopRef.current;
+      console.log('Should continue recording after synthesis:', shouldContinue, '(shouldStopRef:', shouldStopRef.current, ')');
       
       if (shouldContinue) {
         // Restart speech recognition after speech synthesis
@@ -101,17 +109,16 @@ export const useProcessingWorkflow = ({
       setError(errorMessage);
       logger.log('error', 'Translation failed', { error: errorMessage });
       
-      // Check if we should return to recording state or stay idle
-      const currentStatus = document.querySelector('[data-recording-status]')?.getAttribute('data-recording-status');
-      if (currentStatus !== 'idle') {
-        console.log('Returning to recording state after error');
+      // Check shouldStopRef to decide if we should return to recording or stay idle
+      if (!shouldStopRef.current) {
+        console.log('Returning to recording state after error (shouldStopRef:', shouldStopRef.current, ')');
         setStatus('recording');
       } else {
-        console.log('Staying in idle state after error');
+        console.log('Staying in idle state after error (shouldStopRef:', shouldStopRef.current, ')');
         setStatus('idle');
       }
     }
-  }, [translationService, speechSynthesis, logger, setStatus, setTranscriptionEntries, setError, stopSpeechRecognition, startSpeechRecognition]);
+  }, [translationService, speechSynthesis, logger, setStatus, setTranscriptionEntries, setError, stopSpeechRecognition, startSpeechRecognition, shouldStopRef]);
 
   return { processTranscript, logger };
 };
