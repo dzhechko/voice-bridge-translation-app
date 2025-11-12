@@ -16,6 +16,7 @@ export const useSpeechRecognition = (): SpeechRecognitionHook => {
     finalTranscriptRef,
     shouldBeListeningRef,
     isRestartingRef,
+    shouldStopRef,
   } = useSpeechRecognitionState();
 
   const {
