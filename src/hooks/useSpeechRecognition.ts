@@ -120,5 +120,6 @@ export const useSpeechRecognition = (): SpeechRecognitionHook => {
     startListening,
     stopListening,
     error,
+    shouldStopRef: state.shouldStopRef,
   };
 };

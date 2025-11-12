@@ -35,6 +35,7 @@ const MainApp: React.FC = () => {
     setStatus,
     setError,
     setLastProcessedTranscript,
+    shouldStopRef: speechRecognition.shouldStopRef,
   });
 
   useAppEffects({
@@ -57,6 +58,7 @@ const MainApp: React.FC = () => {
     setError,
     stopSpeechRecognition: speechRecognition.stopListening,
     startSpeechRecognition: speechRecognition.startListening,
+    shouldStopRef: speechRecognition.shouldStopRef,
   });
 
   const handlePrivacyAccept = () => {
